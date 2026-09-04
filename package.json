@@ -1,0 +1,19 @@
+{
+  "name": "trading-platform",
+  "private": true,
+  "version": "1.0.0",
+  "packageManager": "pnpm@11.25.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "api:start:dev": "pnpm --dir apps/api start:dev",
+    "api:build": "pnpm --dir apps/api build",
+    "api:start": "pnpm --dir apps/api start",
+    "web:start": "pnpm --dir apps/web start",
+    "web:build": "pnpm --dir apps/web build",
+    "lint": "pnpm -r lint",
+    "format": "pnpm -r format"
+  }
+}
