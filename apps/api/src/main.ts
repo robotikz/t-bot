@@ -1,18 +1,22 @@
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module.js';
+import { AppModule } from './app.module';
+import { ConfigService } from './modules/config/config.service';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { logger: ['log', 'error', 'warn'] });
+  const config = app.get(ConfigService);
 
-  const apiPrefix = process.env.API_PREFIX ?? 'api';
+  const frontend = config.get('FRONTEND_URL', 'http://localhost:4200');
+  app.enableCors({ origin: frontend, credentials: true });
+
+  const apiPrefix = config.get('API_PREFIX', 'api');
   app.setGlobalPrefix(apiPrefix);
-  app.enableCors({
-    origin: ['http://localhost:4200'],
-    credentials: true,
-  });
 
-  const port = Number(process.env.PORT ?? 3000);
+  const port = Number(config.get('PORT', '3000'));
   await app.listen(port);
+  // eslint-disable-next-line no-console
+  console.log(`Server running: http://localhost:${port}/${apiPrefix}`);
 }
 
-void bootstrap();
+bootstrap();

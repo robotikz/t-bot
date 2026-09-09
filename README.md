@@ -36,6 +36,14 @@ trading-platform/
 pnpm install
 ```
 
+Before starting the API, copy the local environment file:
+
+```bash
+cp .env.example apps/api/.env
+```
+
+This sets the Prisma `DATABASE_URL` to the local Postgres container created below.
+
 ## Start PostgreSQL
 
 ```bash
