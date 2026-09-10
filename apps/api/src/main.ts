@@ -1,22 +1,49 @@
 import 'dotenv/config';
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { ConfigService } from './modules/config/config.service';
+import { AppLoggerService } from './common/logger/app-logger.service.js';
+import { AppModule } from './app.module.js';
+import { ConfigService } from './modules/config/config.service.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { logger: ['log', 'error', 'warn'] });
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const logger = app.get(AppLoggerService);
   const config = app.get(ConfigService);
 
-  const frontend = config.get('FRONTEND_URL', 'http://localhost:4200');
-  app.enableCors({ origin: frontend, credentials: true });
+  app.useLogger(logger);
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+    }),
+  );
 
-  const apiPrefix = config.get('API_PREFIX', 'api');
+  app.enableCors({
+    origin: config.getString('FRONTEND_URL', 'http://localhost:4200'),
+    credentials: true,
+  });
+
+  const apiPrefix = config.getString('API_PREFIX', 'api');
+  const port = config.getNumber('PORT', 3000);
+
   app.setGlobalPrefix(apiPrefix);
-
-  const port = Number(config.get('PORT', '3000'));
   await app.listen(port);
-  // eslint-disable-next-line no-console
-  console.log(`Server running: http://localhost:${port}/${apiPrefix}`);
+
+  logger.log(`Application running on http://localhost:${port}/${apiPrefix}`, 'Bootstrap');
+  logger.log(`Environment: ${config.getString('NODE_ENV', 'development')}`, 'Bootstrap');
+
+  const gracefulShutdown = async (signal: NodeJS.Signals) => {
+    logger.warn(`Received ${signal}. Shutting down application.`, 'Bootstrap');
+    await app.close();
+    process.exit(0);
+  };
+
+  process.on('SIGINT', () => void gracefulShutdown('SIGINT'));
+  process.on('SIGTERM', () => void gracefulShutdown('SIGTERM'));
 }
 
 bootstrap();
