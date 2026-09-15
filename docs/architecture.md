@@ -26,6 +26,7 @@ The system is designed to support local development with PostgreSQL and a clean 
 - `PrismaModule`: provides a shared Prisma client service
 - `HealthModule`: exposes `GET /api/health` for health-check and startup validation
 - `BrokersModule`: exposes broker abstraction metadata and manages broker adapter registration
+- `BybitBrokerAdapter`: read-only public market-data adapter for Bybit spot instruments and klines
 
 ### Key files
 
@@ -76,10 +77,21 @@ Infrastructure
 
 ### Phase 4 scope
 
-- The current Bybit and Trading212 adapters are placeholders for registration and discovery only
-- No external broker API calls are performed in this phase
-- No secrets are returned by broker endpoints
-- No database changes were required because the abstraction layer is in-memory and configuration-driven
+- The broker layer remains capability-driven and the Bybit adapter only advertises `MARKET_DATA`
+- Bybit market-data requests are handled through a dedicated HTTP client and mapper layer under `apps/api/src/modules/brokers/infrastructure/bybit/`
+- The adapter uses Bybit v5 public REST endpoints for spot instruments and klines; no private account or trading endpoints are used in this phase
+- Public Bybit market-data endpoints work without API credentials; credentials remain optional and unused by this phase
+- Candles are normalized into the existing internal `Candle` model and returned in chronological order (`oldest → newest`)
+- No database changes were required because market data is fetched directly from Bybit and not persisted by the adapter
+
+### Bybit API assumptions
+
+- Base URLs: `https://api.bybit.com` for mainnet and `https://api-testnet.bybit.com` for testnet
+- Instruments endpoint: `GET /v5/market/instruments-info?category=spot`
+- Candles endpoint: `GET /v5/market/kline?category=spot&symbol=...&interval=...`
+- Bybit REST responses use the common envelope `{ retCode, retMsg, result, retExtInfo, time }`
+- Spot instruments do not use pagination; the adapter requests the spot category directly
+- Kline responses are returned newest-first by Bybit and are re-sorted into chronological order in the adapter
 
 ## Frontend architecture
 

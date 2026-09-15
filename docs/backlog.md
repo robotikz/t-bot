@@ -22,15 +22,14 @@
 
 ## Future phases (post Phase 4)
 
-- Phase 5: Market Data – integrate candle fetching through broker adapters
+- Phase 5: Market Data – completed with the read-only Bybit adapter and market-data HTTP client
 - Phase 6: Order Management – implement order creation, tracking, and execution through broker trading capabilities
 - Phase 7: Backtesting – historical analysis and strategy validation
 
 ## Broker integration backlog
 
-- Implement `BybitBrokerAdapter` real API integration
 - Implement `Trading212BrokerAdapter` real API integration
-- Add market-data capability implementations for supported brokers
+- Add market-data capability implementations for additional brokers beyond Bybit
 - Add broker authentication flows and credential validation
 - Add broker health monitoring and connection diagnostics
 - Add capability-specific integration tests for broker adapters

@@ -22,17 +22,22 @@ export interface Instrument {
   symbol: Symbol;
   tickSize?: number;
   lotSize?: number;
+  baseAsset?: string;
+  quoteAsset?: string;
+  active?: boolean;
+  status?: string;
 }
 
 export interface Candle {
+  symbol: Symbol;
+  timeframe: Timeframe;
   openTime: Date;
   closeTime: Date;
   open: number;
   high: number;
   low: number;
   close: number;
-  volume?: number;
-  timeframe?: Timeframe;
+  volume: number;
 }
 
 export interface Balance {

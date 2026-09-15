@@ -12,16 +12,20 @@ export class BrokerRegistryService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    if (this.isEnabled('BYBIT_ENABLED')) {
-      this.brokerManager.register(new BybitBrokerAdapter());
+    if (this.configService.getBoolean('BYBIT_ENABLED', false)) {
+      this.brokerManager.register(
+        new BybitBrokerAdapter({
+          testnet: this.configService.getBoolean('BYBIT_TESTNET', false),
+          baseUrl: this.configService.getString('BYBIT_BASE_URL', ''),
+          timeoutMs: this.configService.getNumber('BYBIT_TIMEOUT_MS', 10000),
+          apiKey: this.configService.getString('BYBIT_API_KEY', ''),
+          apiSecret: this.configService.getString('BYBIT_API_SECRET', ''),
+        }),
+      );
     }
 
-    if (this.isEnabled('TRADING212_ENABLED')) {
+    if (this.configService.getBoolean('TRADING212_ENABLED', false)) {
       this.brokerManager.register(new Trading212BrokerAdapter());
     }
-  }
-
-  private isEnabled(key: 'BYBIT_ENABLED' | 'TRADING212_ENABLED'): boolean {
-    return this.configService.getString(key, 'false').toLowerCase() === 'true';
   }
 }

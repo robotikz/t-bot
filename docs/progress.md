@@ -68,3 +68,15 @@ Next: install runtime dependencies and run end-to-end validation.
   - `GET /api/brokers/:id/capabilities`
 - Added unit tests for `BrokerManager`
 - Kept the implementation limited to abstraction and registration; no external broker APIs were called
+
+## Phase 5 – Bybit Adapter (Read-Only)
+
+**Date:** 2026-09-15
+**Status:** Completed
+
+- Implemented a real read-only Bybit adapter for public spot market data
+- Added a dedicated Bybit HTTP client with timeout, HTTP, API, and malformed-response handling
+- Added Bybit mappers for spot instruments and klines, including chronological candle ordering
+- Extended the broker API with read-only routes for markets, instrument details, and candles
+- Added configuration for Bybit base URL, testnet, timeout, and optional credentials
+- Added unit and e2e tests for the Bybit adapter, HTTP client, mapper, and read-only endpoints
