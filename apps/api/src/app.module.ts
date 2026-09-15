@@ -6,10 +6,15 @@ import { LoggerModule } from './common/logger/logger.module.js';
 import { RequestLoggerMiddleware } from './common/logger/request-logger.middleware.js';
 import { ConfigModule } from './modules/config/config.module.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { ExchangesModule } from './modules/exchanges/exchanges.module.js';
+import { StrategiesModule } from './modules/strategies/strategies.module.js';
+import { CandlesModule } from './modules/candles/candles.module.js';
+import { OrdersModule } from './modules/orders/orders.module.js';
+import { TradesModule } from './modules/trades/trades.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 
 @Module({
-  imports: [ConfigModule, LoggerModule, PrismaModule, HealthModule],
+  imports: [ConfigModule, LoggerModule, PrismaModule, HealthModule, ExchangesModule, StrategiesModule, CandlesModule, OrdersModule, TradesModule],
   providers: [
     {
       provide: APP_INTERCEPTOR,

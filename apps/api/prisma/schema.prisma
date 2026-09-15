@@ -12,3 +12,91 @@ model User {
   email     String   @unique
   createdAt DateTime @default(now())
 }
+
+enum OrderSide {
+  BUY
+  SELL
+}
+
+enum OrderStatus {
+  NEW
+  FILLED
+  CANCELLED
+  REJECTED
+}
+
+enum Timeframe {
+  M1
+  M5
+  M15
+  H1
+  H4
+  D1
+}
+
+enum ExchangeName {
+  BINANCE
+  BYBIT
+  OKX
+}
+
+model Exchange {
+  id        String    @id @default(cuid())
+  name      ExchangeName @unique
+  enabled   Boolean   @default(true)
+  createdAt DateTime  @default(now())
+
+  orders    Order[]
+  trades    Trade[]
+}
+
+model Strategy {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model Candle {
+  id        String    @id @default(cuid())
+  symbol    String
+  timeframe Timeframe
+  openTime  DateTime
+  closeTime DateTime
+  open      Float
+  high      Float
+  low       Float
+  close     Float
+  volume    Float
+
+  @@index([symbol, timeframe, closeTime])
+}
+
+model Order {
+  id         String      @id @default(cuid())
+  exchange   Exchange    @relation(fields: [exchangeId], references: [id])
+  exchangeId String
+  symbol     String
+  side       OrderSide
+  type       String
+  quantity   Float
+  price      Float?
+  status     OrderStatus
+  createdAt  DateTime    @default(now())
+
+  trades     Trade[]
+}
+
+model Trade {
+  id         String   @id @default(cuid())
+  order      Order    @relation(fields: [orderId], references: [id])
+  orderId    String
+  exchange   Exchange @relation(fields: [exchangeId], references: [id])
+  exchangeId String
+  symbol     String
+  price      Float
+  quantity   Float
+  fee        Float
+  executedAt DateTime
+}

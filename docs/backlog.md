@@ -11,6 +11,22 @@
 - Core infrastructure is complete: configuration, database lifecycle, logging, validation, error handling, response shaping, and health checks are in place.
 - The next backlog items should begin with user/domain modeling and the first actual business module beyond the health endpoint.
 
+## Phase 3 (Domain Foundation)
+
+- ✓ Add domain models and repository pattern
+- ✓ Add read-only REST endpoints for exchanges, strategies, candles, orders, trades
+- ✓ Run Prisma generate / db push and seed initial exchanges and strategies
+- Add unit tests for repository and service layers
+- Add e2e tests for REST endpoints
+- Implement validation rules and error responses for invalid query parameters
+
+## Future phases (post Phase 3)
+
+- Phase 4: Strategy Configuration – implement POST/PUT/DELETE for strategies
+- Phase 5: Market Data – integrate candle fetching from exchanges
+- Phase 6: Order Management – implement order creation, tracking, and execution
+- Phase 7: Backtesting – historical analysis and strategy validation
+
 ## Remaining backlog (post Phase 2)
 
 - Add user/account domain model and schema expansion beyond the bootstrap model

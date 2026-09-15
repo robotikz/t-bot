@@ -30,4 +30,8 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   }
+  ,
+  "prisma": {
+    "seed": "node prisma/seed.mjs"
+  }
 }
