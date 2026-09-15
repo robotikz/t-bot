@@ -6,14 +6,21 @@
   "scripts": {
     "start:dev": "node --loader ts-node/esm --experimental-specifier-resolution=node src/main.ts",
     "start": "node -r dotenv/config ./dist/main.js",
-    "build": "tsc -p tsconfig.build.json"
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "lint": "pnpm exec oxlint src prisma"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^24.0.0",
+    "@types/supertest": "^6.0.3",
+    "oxlint": "^1.20.0",
+    "supertest": "^7.1.4",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^7.0.2",
+    "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^5.0.0"
   },
   "dependencies": {

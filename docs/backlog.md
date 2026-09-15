@@ -20,12 +20,20 @@
 - Add e2e tests for REST endpoints
 - Implement validation rules and error responses for invalid query parameters
 
-## Future phases (post Phase 3)
+## Future phases (post Phase 4)
 
-- Phase 4: Strategy Configuration – implement POST/PUT/DELETE for strategies
-- Phase 5: Market Data – integrate candle fetching from exchanges
-- Phase 6: Order Management – implement order creation, tracking, and execution
+- Phase 5: Market Data – integrate candle fetching through broker adapters
+- Phase 6: Order Management – implement order creation, tracking, and execution through broker trading capabilities
 - Phase 7: Backtesting – historical analysis and strategy validation
+
+## Broker integration backlog
+
+- Implement `BybitBrokerAdapter` real API integration
+- Implement `Trading212BrokerAdapter` real API integration
+- Add market-data capability implementations for supported brokers
+- Add broker authentication flows and credential validation
+- Add broker health monitoring and connection diagnostics
+- Add capability-specific integration tests for broker adapters
 
 ## Remaining backlog (post Phase 2)
 

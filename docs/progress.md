@@ -49,3 +49,22 @@ Next: install runtime dependencies and run end-to-end validation.
   - `GET /api/orders` with filters ✓
   - `GET /api/trades` with filters ✓
 - Project builds successfully with TypeScript strict mode
+
+## Phase 4 – Broker Abstraction Layer
+
+**Date:** 2026-09-15
+**Status:** Completed
+
+- Added a dedicated `BrokersModule` to the NestJS API
+- Added broker domain abstractions for descriptors, markets, instruments, balances, positions, orders, accounts, and symbols
+- Added capability-oriented interfaces: `MarketDataProvider`, `AccountProvider`, `TradingProvider`
+- Added a generic `BrokerAdapter` abstraction with discoverable `BrokerCapability` support
+- Added `BrokerManager` for adapter registration, retrieval, capability checks, and connection lifecycle handling
+- Added broker-specific application exceptions for duplicate registration, unknown brokers, unsupported capabilities, and connection failures
+- Added environment-based broker registration structure for future Bybit and Trading212 integrations without storing secrets in source control
+- Added read-only endpoints:
+  - `GET /api/brokers`
+  - `GET /api/brokers/:id`
+  - `GET /api/brokers/:id/capabilities`
+- Added unit tests for `BrokerManager`
+- Kept the implementation limited to abstraction and registration; no external broker APIs were called

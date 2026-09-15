@@ -7,7 +7,13 @@ export type AppConfigKey =
   | 'API_PREFIX'
   | 'DATABASE_URL'
   | 'LOG_LEVEL'
-  | 'FRONTEND_URL';
+  | 'FRONTEND_URL'
+  | 'BYBIT_ENABLED'
+  | 'BYBIT_API_KEY'
+  | 'BYBIT_API_SECRET'
+  | 'TRADING212_ENABLED'
+  | 'TRADING212_API_KEY'
+  | 'TRADING212_API_SECRET';
 
 @Injectable()
 export class ConfigService {

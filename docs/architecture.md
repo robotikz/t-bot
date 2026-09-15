@@ -25,6 +25,7 @@ The system is designed to support local development with PostgreSQL and a clean 
 - `ConfigModule`: loads environment variables and exposes application configuration
 - `PrismaModule`: provides a shared Prisma client service
 - `HealthModule`: exposes `GET /api/health` for health-check and startup validation
+- `BrokersModule`: exposes broker abstraction metadata and manages broker adapter registration
 
 ### Key files
 
@@ -38,7 +39,47 @@ The system is designed to support local development with PostgreSQL and a clean 
 
 - Global prefix is `/api`
 - Health endpoint is `GET /api/health`
+- Broker endpoints are read-only in Phase 4: `GET /api/brokers`, `GET /api/brokers/:id`, `GET /api/brokers/:id/capabilities`
 - CORS is enabled for `http://localhost:4200` during local development
+
+## Broker abstraction layer
+
+The trading platform now separates strategy logic from broker-specific implementations through a capability-oriented broker layer:
+
+Strategy
+	↓
+BrokerManager
+	↓
+BrokerAdapter
+	↓
+Concrete Broker Adapter
+	↓
+External Broker API
+
+### Why capability-based interfaces
+
+Different brokers expose different APIs and feature sets. A single large adapter interface would force incompatible implementations and leak broker-specific assumptions into strategy code.
+
+To avoid that, the broker layer is split into focused capabilities:
+
+- `MarketDataProvider`
+- `AccountProvider`
+- `TradingProvider`
+
+A broker adapter declares supported capabilities through `BrokerCapability` and only exposes the capability providers it actually supports. This keeps the Strategy Engine broker-agnostic and preserves a clean dependency direction:
+
+Domain
+	↓
+Application
+	↓
+Infrastructure
+
+### Phase 4 scope
+
+- The current Bybit and Trading212 adapters are placeholders for registration and discovery only
+- No external broker API calls are performed in this phase
+- No secrets are returned by broker endpoints
+- No database changes were required because the abstraction layer is in-memory and configuration-driven
 
 ## Frontend architecture
 
