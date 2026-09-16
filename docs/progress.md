@@ -143,3 +143,36 @@ Next: install runtime dependencies and run end-to-end validation.
   - no strategy scheduling
   - no signal persistence
 
+## Phase 9 – Backtesting Engine & Trading UI
+
+**Date:** 2026-09-16
+**Status:** Implemented
+
+- Added a broker-agnostic `BacktestsModule` with `POST /api/backtests`
+- Added backtest domain models for configuration, simulated positions, trades, equity points, metrics, and result envelopes
+- Added a deterministic `BacktestEngine` that:
+  - processes candles strictly oldest → newest
+  - evaluates existing strategies on candle prefixes only
+  - executes signals at the next candle open
+  - force-closes open long positions at the final candle close
+  - applies fees to entry and exit notionals
+  - records an equity point after every processed candle
+- Reused the existing Phase 8 strategy layer directly; no backtest-specific EMA/RSI strategy variants were introduced
+- Extended the market-data engine with date-range candle reads and broker-backed historical range loading
+- Added deterministic unit coverage for:
+  - next-candle execution
+  - duplicate BUY / SELL-while-flat behavior
+  - final open-position closure
+  - no look-ahead bias
+  - equity curve and max drawdown
+- Added API coverage for the backtest service and backtest endpoint validation flow
+- Added the first Angular trading screen at `/trading` with:
+  - broker, symbol, timeframe, strategy, date, capital, and fee inputs
+  - backtest execution through `TradingApiService`
+  - candlestick chart
+  - EMA overlays when present
+  - RSI indicator panel when applicable
+  - BUY / SELL markers from backend signals
+  - metrics summary, equity curve, and trade history
+- Selected `lightweight-charts` for charting because it supports candlesticks, line overlays, markers, zoom/pan, and responsive rendering without introducing a large UI framework
+- Verified backend tests, frontend tests, backend typecheck/build, and frontend build locally

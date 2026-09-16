@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsDateString, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { MARKET_DATA_PUBLIC_TIMEFRAMES, type MarketDataPublicTimeframe } from '../market-data.constants.js';
 
 export class ListMarketDataCandlesDto {
@@ -18,4 +18,12 @@ export class ListMarketDataCandlesDto {
   @Min(1)
   @Max(5000)
   limit?: number;
+
+  @IsOptional()
+  @IsDateString()
+  startTime?: string;
+
+  @IsOptional()
+  @IsDateString()
+  endTime?: string;
 }

@@ -30,6 +30,7 @@ The system is designed to support local development with PostgreSQL and a clean 
 - `Trading212BrokerAdapter`: read-only account adapter for Trading212 Invest and Stocks ISA accounts
 - `MarketDataModule`: broker-agnostic candle fetch/ingest/read orchestration
 - `StrategiesModule`: broker-agnostic strategy registry and signal evaluation endpoints
+- `BacktestsModule`: broker-agnostic backtesting orchestration and deterministic simulation over normalized candles
 
 ### Key files
 
@@ -144,6 +145,54 @@ Signal
 	↓
 REST API
 
+### Phase 9 scope
+
+- Added a broker-agnostic backtesting engine that reuses the Phase 8 strategy abstraction without changing strategy behavior for replay mode
+- Added a `BacktestsModule` with:
+	- `BacktestService`
+	- in-memory `BacktestEngine`
+	- `POST /api/backtests`
+- Added deterministic backtest domain models for:
+	- `BacktestConfig`
+	- `SimulatedPosition`
+	- `BacktestTrade`
+	- `EquityPoint`
+	- `BacktestMetrics`
+	- `BacktestResult`
+- Added date-range historical loading to the market-data engine so backtests still flow through:
+
+BacktestController
+	↓
+BacktestService
+	↓
+Market Data Engine
+	↓
+BrokerManager
+	↓
+BrokerAdapter
+	↓
+Candle[]
+	↓
+StrategyRegistry
+	↓
+BacktestEngine
+	↓
+BacktestResult
+
+- The backtest execution model is deliberately simple and deterministic:
+	- long-only
+	- single open position at a time
+	- signal generated on candle close
+	- execution at next candle open
+	- repeated `BUY` while long is ignored
+	- repeated `SELL` while flat is ignored
+	- open positions at the end of the run are force-closed at the final candle close
+- The simulator applies fees on both entry and exit notionals
+- Equity is recorded after every processed candle using candle-close mark-to-market valuation
+- Metrics currently include final capital, profit, return, trade counts, win rate, average trade values, gross profit/loss, and max drawdown
+- Backtest runs are not persisted in Phase 9; they remain request/response computations
+- No paper trading, live execution, leverage, short selling, stop-loss, take-profit, or optimization is included in this phase
+
 ### Bybit API assumptions
 
 - Base URLs: `https://api.bybit.com` for mainnet and `https://api-testnet.bybit.com` for testnet
@@ -177,6 +226,7 @@ REST API
 
 - `DashboardComponent`: displays app title and backend health status
 - `SettingsComponent`: placeholder for future configuration/settings screens
+- `TradingComponent`: trading/backtesting screen with configuration form, candlestick chart, overlays, metrics, equity curve, and trade history
 
 ### Key files
 
@@ -187,9 +237,20 @@ REST API
 
 ### Routing
 
-- `/` -> dashboard
+- `/` -> trading
+- `/trading` -> trading/backtesting page
 - `/dashboard` -> dashboard
 - `/settings` -> settings page
+
+### Phase 9 UI notes
+
+- The Angular app keeps HTTP access inside a dedicated `TradingApiService`
+- The first real trading UI is implemented as a standalone `TradingComponent`
+- Candlestick and equity charts use `lightweight-charts`, which fits the current Angular app because it is lightweight, TypeScript-friendly, actively maintained, and supports candlesticks, line overlays, markers, zoom, pan, and responsive resizing
+- The candlestick chart renders normalized backend candle data only; no market-data calculation is performed in the frontend
+- EMA overlays are rendered from backend signal indicator payloads when available
+- RSI is rendered in a secondary chart when the RSI strategy is selected
+- BUY and SELL markers are rendered from backend-provided signal timestamps
 
 ## Data layer
 

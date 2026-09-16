@@ -57,6 +57,25 @@
 - Strategy scheduling and background workers
 - WebSocket market-data ingestion support
 
+## Backtesting and trading UI follow-up backlog (post Phase 9)
+
+- Paper trading engine
+- Live order execution workflow
+- Signal persistence and execution audit trail
+- Persistent backtest runs and result history
+- Position sizing policies beyond full-capital long entries
+- Stop-loss and take-profit simulation
+- Slippage model
+- Spread model
+- Short selling
+- Leverage and margin support
+- Walk-forward testing
+- Monte Carlo analysis
+- Parameter sweeps and strategy optimization
+- Risk management and pre-trade controls
+- Real-time dashboard updates and WebSocket market data
+- Alerts and notifications
+
 ## Remaining backlog (post Phase 2)
 
 - Add user/account domain model and schema expansion beyond the bootstrap model

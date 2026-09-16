@@ -13,6 +13,14 @@ type FetchCandlesRequest = {
   beforeOpenTime?: Date;
 };
 
+type ReadCandlesRangeRequest = {
+  brokerId: string;
+  symbol: string;
+  timeframe: Timeframe;
+  startTime: Date;
+  endTime: Date;
+};
+
 type IngestCandlesRequest = {
   brokerId: string;
   symbol: string;
@@ -77,6 +85,30 @@ export class MarketDataService {
     return this.decorateStoredCandles(request.brokerId, candles);
   }
 
+  async getCandlesInRange(request: ReadCandlesRangeRequest): Promise<StoredCandle[]> {
+    if (!(request.startTime instanceof Date) || Number.isNaN(request.startTime.getTime())) {
+      throw new BadRequestException('startTime must be a valid date');
+    }
+
+    if (!(request.endTime instanceof Date) || Number.isNaN(request.endTime.getTime())) {
+      throw new BadRequestException('endTime must be a valid date');
+    }
+
+    if (request.startTime.getTime() >= request.endTime.getTime()) {
+      throw new BadRequestException('startTime must be before endTime');
+    }
+
+    const candles = await this.candleRepository.findByBrokerSymbolTimeframeRange({
+      brokerId: request.brokerId,
+      symbol: request.symbol,
+      timeframe: request.timeframe,
+      startTime: request.startTime,
+      endTime: request.endTime,
+    });
+
+    return this.decorateStoredCandles(request.brokerId, candles);
+  }
+
   async loadCandles(request: FetchCandlesRequest): Promise<StoredCandle[]> {
     const limit = this.resolveLimit(request.limit);
     const provider = this.brokerManager.getMarketDataProvider(request.brokerId);
@@ -114,6 +146,59 @@ export class MarketDataService {
       timeframe: request.timeframe,
       candles: fetchedCandles,
     });
+  }
+
+  async loadCandlesInRange(request: ReadCandlesRangeRequest): Promise<StoredCandle[]> {
+    if (!(request.startTime instanceof Date) || Number.isNaN(request.startTime.getTime())) {
+      throw new BadRequestException('startTime must be a valid date');
+    }
+
+    if (!(request.endTime instanceof Date) || Number.isNaN(request.endTime.getTime())) {
+      throw new BadRequestException('endTime must be a valid date');
+    }
+
+    if (request.startTime.getTime() >= request.endTime.getTime()) {
+      throw new BadRequestException('startTime must be before endTime');
+    }
+
+    const maxCandles = this.configService.getNumber('MARKET_DATA_MAX_CANDLES', 500);
+    const pageSize = Math.min(MARKET_DATA_DEFAULT_PAGE_SIZE, maxCandles);
+    const provider = this.brokerManager.getMarketDataProvider(request.brokerId);
+    const fetchedCandles: Candle[] = [];
+    let beforeOpenTime = new Date(request.endTime.getTime() + 1);
+
+    while (fetchedCandles.length < maxCandles) {
+      const remaining = maxCandles - fetchedCandles.length;
+      const currentLimit = Math.min(pageSize, remaining);
+      const page = await provider.getCandles(request.symbol, request.timeframe, currentLimit, { beforeOpenTime });
+
+      if (!page.length) {
+        break;
+      }
+
+      const normalizedPage = this.sortCandles(page);
+      fetchedCandles.push(...normalizedPage);
+
+      const oldestCandle = normalizedPage[0];
+      if (!oldestCandle) {
+        break;
+      }
+
+      if (oldestCandle.openTime.getTime() <= request.startTime.getTime() || page.length < currentLimit) {
+        break;
+      }
+
+      beforeOpenTime = oldestCandle.openTime;
+    }
+
+    await this.ingestCandles({
+      brokerId: request.brokerId,
+      symbol: request.symbol,
+      timeframe: request.timeframe,
+      candles: fetchedCandles,
+    });
+
+    return this.getCandlesInRange(request);
   }
 
   private resolveLimit(limit?: number): number {

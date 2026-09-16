@@ -65,6 +65,27 @@ export class CandleRepository {
     return this.findMany(filter);
   }
 
+  async findByBrokerSymbolTimeframeRange(filter: {
+    brokerId: BrokerId;
+    symbol: string;
+    timeframe: Timeframe;
+    startTime: Date;
+    endTime: Date;
+  }) {
+    return this.prisma.candle.findMany({
+      where: {
+        brokerId: filter.brokerId,
+        symbol: filter.symbol,
+        timeframe: filter.timeframe,
+        openTime: {
+          gte: filter.startTime,
+          lte: filter.endTime,
+        },
+      },
+      orderBy: { openTime: 'asc' },
+    });
+  }
+
   async findLatest(filter: { brokerId: BrokerId; symbol: string; timeframe: Timeframe }) {
     return this.prisma.candle.findFirst({
       where: {

@@ -24,12 +24,12 @@ No order execution is implemented yet.
 
 ## Next planned phases
 
-### Phase 9: Backtesting and strategy analytics
+### Phase 9: Backtesting and first trading UI
 
-- historical replay over stored candles
-- strategy performance metrics and reporting
-- parameter optimization workflows
-- deterministic simulation inputs and outputs
+- broker-agnostic historical replay over normalized candles
+- deterministic simulated execution and long-only portfolio accounting
+- performance metrics, equity curve, and trade history reporting
+- first Angular trading/backtesting screen with candle chart and signal overlays
 
 ### Phase 10: Execution foundation (paper first)
 
@@ -37,6 +37,7 @@ No order execution is implemented yet.
 - paper-trading execution adapter
 - execution audit trail and signal persistence
 - initial position sizing hooks
+- backtest result persistence if product needs justify it
 
 ### Phase 11: Risk and controls
 

@@ -9,6 +9,6 @@ import { StrategyRegistry } from './application/strategy-registry.service.js';
   imports: [MarketDataModule],
   controllers: [StrategiesController],
   providers: [StrategiesService, StrategyRegistry, StrategyEvaluationService],
-  exports: [StrategiesService],
+  exports: [StrategiesService, StrategyRegistry],
 })
 export class StrategiesModule {}

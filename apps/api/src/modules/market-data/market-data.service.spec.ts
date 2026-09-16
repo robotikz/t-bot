@@ -12,6 +12,7 @@ describe('MarketDataService', () => {
     candleRepository?: {
       upsertMany: ReturnType<typeof vi.fn>;
       findByBrokerSymbolTimeframe: ReturnType<typeof vi.fn>;
+      findByBrokerSymbolTimeframeRange: ReturnType<typeof vi.fn>;
     };
     configService?: { getNumber: ReturnType<typeof vi.fn> };
   }) {
@@ -19,6 +20,7 @@ describe('MarketDataService', () => {
     const candleRepository = dependencies?.candleRepository ?? {
       upsertMany: vi.fn(async () => []),
       findByBrokerSymbolTimeframe: vi.fn(async () => []),
+      findByBrokerSymbolTimeframeRange: vi.fn(async () => []),
     };
     const configService = dependencies?.configService ?? { getNumber: vi.fn(() => 100) };
 
@@ -165,6 +167,108 @@ describe('MarketDataService', () => {
     expect(candles[0].openTime.toISOString()).toBe('2024-09-16T10:00:00.000Z');
     expect(candles[0].isClosed).toBe(true);
     expect(candles[1].isClosed).toBe(true);
+  });
+
+  it('loads historical candles in a date range via the market-data provider', async () => {
+    const { service, brokerManager, candleRepository } = createService({ configService: { getNumber: vi.fn(() => 10) } });
+    const getCandles = vi
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          symbol: 'BTCUSDT',
+          timeframe: Timeframe.H1,
+          openTime: new Date('2026-01-01T02:00:00.000Z'),
+          closeTime: new Date('2026-01-01T02:59:59.999Z'),
+          open: 102,
+          high: 102,
+          low: 102,
+          close: 102,
+          volume: 1,
+        },
+        {
+          symbol: 'BTCUSDT',
+          timeframe: Timeframe.H1,
+          openTime: new Date('2026-01-01T01:00:00.000Z'),
+          closeTime: new Date('2026-01-01T01:59:59.999Z'),
+          open: 101,
+          high: 101,
+          low: 101,
+          close: 101,
+          volume: 1,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          symbol: 'BTCUSDT',
+          timeframe: Timeframe.H1,
+          openTime: new Date('2026-01-01T00:00:00.000Z'),
+          closeTime: new Date('2026-01-01T00:59:59.999Z'),
+          open: 100,
+          high: 100,
+          low: 100,
+          close: 100,
+          volume: 1,
+        },
+      ]);
+
+    candleRepository.findByBrokerSymbolTimeframeRange.mockResolvedValue([
+      {
+        brokerId: 'bybit',
+        symbol: 'BTCUSDT',
+        timeframe: Timeframe.H1,
+        openTime: new Date('2026-01-01T00:00:00.000Z'),
+        closeTime: new Date('2026-01-01T00:59:59.999Z'),
+        open: 100,
+        high: 100,
+        low: 100,
+        close: 100,
+        volume: 1,
+      },
+      {
+        brokerId: 'bybit',
+        symbol: 'BTCUSDT',
+        timeframe: Timeframe.H1,
+        openTime: new Date('2026-01-01T01:00:00.000Z'),
+        closeTime: new Date('2026-01-01T01:59:59.999Z'),
+        open: 101,
+        high: 101,
+        low: 101,
+        close: 101,
+        volume: 1,
+      },
+      {
+        brokerId: 'bybit',
+        symbol: 'BTCUSDT',
+        timeframe: Timeframe.H1,
+        openTime: new Date('2026-01-01T02:00:00.000Z'),
+        closeTime: new Date('2026-01-01T02:59:59.999Z'),
+        open: 102,
+        high: 102,
+        low: 102,
+        close: 102,
+        volume: 1,
+      },
+    ]);
+
+    brokerManager.register(
+      new InMemoryBrokerAdapter('bybit', 'Bybit', BrokerType.CRYPTO_EXCHANGE, [BrokerCapability.MARKET_DATA], {
+        getMarkets: vi.fn(async () => [{ symbol: 'BTCUSDT' }]),
+        getInstrument: vi.fn(async () => null),
+        getCandles,
+      }),
+    );
+
+    const candles = await service.loadCandlesInRange({
+      brokerId: 'bybit',
+      symbol: 'BTCUSDT',
+      timeframe: Timeframe.H1,
+      startTime: new Date('2026-01-01T00:00:00.000Z'),
+      endTime: new Date('2026-01-01T02:59:59.999Z'),
+    });
+
+    expect(getCandles).toHaveBeenCalledTimes(1);
+    expect(candles).toHaveLength(3);
+    expect(candleRepository.upsertMany).toHaveBeenCalled();
   });
 
   it('rejects invalid candles', async () => {

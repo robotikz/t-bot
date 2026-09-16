@@ -23,6 +23,16 @@ export class MarketDataController {
 
   @Get('candles')
   async candles(@Query() query: ListMarketDataCandlesDto) {
+    if (query.startTime && query.endTime) {
+      return this.marketDataService.getCandlesInRange({
+        brokerId: query.broker,
+        symbol: query.symbol,
+        timeframe: MARKET_DATA_PUBLIC_TIMEFRAME_TO_DOMAIN_TIMEFRAME[query.timeframe],
+        startTime: new Date(query.startTime),
+        endTime: new Date(query.endTime),
+      });
+    }
+
     return this.marketDataService.getCandles({
       brokerId: query.broker,
       symbol: query.symbol,
@@ -33,6 +43,16 @@ export class MarketDataController {
 
   @Get('candles/load')
   async loadCandles(@Query() query: ListMarketDataCandlesDto) {
+    if (query.startTime && query.endTime) {
+      return this.marketDataService.loadCandlesInRange({
+        brokerId: query.broker,
+        symbol: query.symbol,
+        timeframe: MARKET_DATA_PUBLIC_TIMEFRAME_TO_DOMAIN_TIMEFRAME[query.timeframe],
+        startTime: new Date(query.startTime),
+        endTime: new Date(query.endTime),
+      });
+    }
+
     return this.marketDataService.loadCandles({
       brokerId: query.broker,
       symbol: query.symbol,
