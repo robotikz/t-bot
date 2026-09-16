@@ -80,3 +80,18 @@ Next: install runtime dependencies and run end-to-end validation.
 - Extended the broker API with read-only routes for markets, instrument details, and candles
 - Added configuration for Bybit base URL, testnet, timeout, and optional credentials
 - Added unit and e2e tests for the Bybit adapter, HTTP client, mapper, and read-only endpoints
+
+## Phase 6 – Trading212 Adapter (Read-Only)
+
+**Date:** 2026-09-15
+**Status:** Completed
+
+- Implemented a real read-only Trading212 adapter that advertises only `ACCOUNT`
+- Added a dedicated Trading212 HTTP client with safe authentication, timeout handling, HTTP error mapping, and safe configuration validation
+- Added Trading212 mappers for account summary, balances, and open positions into the shared broker domain types
+- Extended the broker REST API with read-only account endpoints for Trading212:
+  - `GET /api/brokers/trading212/account`
+  - `GET /api/brokers/trading212/balances`
+  - `GET /api/brokers/trading212/positions`
+- Kept Trading212 disabled by default and safe to omit from local startup configuration
+- Verified the implementation with unit tests, e2e tests, lint, typecheck, build, and safe read-only live API calls to Trading212 live using local credentials

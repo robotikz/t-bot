@@ -22,6 +22,21 @@ export class BrokersController {
     return this.service.getCapabilities(id);
   }
 
+  @Get(':id/account')
+  async account(@Param('id') id: string) {
+    return this.service.getAccount(id);
+  }
+
+  @Get(':id/balances')
+  async balances(@Param('id') id: string) {
+    return this.service.getBalances(id);
+  }
+
+  @Get(':id/positions')
+  async positions(@Param('id') id: string) {
+    return this.service.getPositions(id);
+  }
+
   @Get(':id/markets')
   async markets(@Param('id') id: string) {
     return this.service.getMarkets(id);

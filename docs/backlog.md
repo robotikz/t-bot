@@ -23,16 +23,17 @@
 ## Future phases (post Phase 4)
 
 - Phase 5: Market Data – completed with the read-only Bybit adapter and market-data HTTP client
-- Phase 6: Order Management – implement order creation, tracking, and execution through broker trading capabilities
-- Phase 7: Backtesting – historical analysis and strategy validation
+- Phase 6: Trading212 read-only adapter – completed with account and position support aligned to the official API
+- Next platform phases: order management/execution, broader market-data ingestion, strategy execution, and backtesting
 
 ## Broker integration backlog
 
-- Implement `Trading212BrokerAdapter` real API integration
+- Extend broker abstractions if a future read-only history provider is introduced
 - Add market-data capability implementations for additional brokers beyond Bybit
-- Add broker authentication flows and credential validation
+- Add broker authentication flows and credential validation for any future trading-capable adapters
 - Add broker health monitoring and connection diagnostics
 - Add capability-specific integration tests for broker adapters
+- Revisit Trading212 if the official API adds candle or broader market-data support later
 
 ## Remaining backlog (post Phase 2)
 

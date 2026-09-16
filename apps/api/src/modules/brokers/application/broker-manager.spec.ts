@@ -59,6 +59,27 @@ describe('BrokerManager', () => {
     const manager = new BrokerManager();
     manager.register(new InMemoryBrokerAdapter('trading212', 'Trading212', BrokerType.STOCK_BROKER, [BrokerCapability.ACCOUNT]));
 
+    expect(() => manager.getMarketDataProvider('trading212')).toThrow(BrokerCapabilityNotSupportedException);
     expect(() => manager.getTradingProvider('trading212')).toThrow(BrokerCapabilityNotSupportedException);
+  });
+
+  it('returns the Trading212 account provider', () => {
+    const manager = new BrokerManager();
+    const accountProvider = {
+      getAccount: vi.fn(),
+      getBalances: vi.fn(),
+      getPositions: vi.fn(),
+    } as never;
+    const broker = new InMemoryBrokerAdapter(
+      'trading212',
+      'Trading212',
+      BrokerType.STOCK_BROKER,
+      [BrokerCapability.ACCOUNT],
+      undefined,
+      accountProvider,
+    );
+    manager.register(broker);
+
+    expect(manager.getAccountProvider('trading212')).toBe(accountProvider);
   });
 });

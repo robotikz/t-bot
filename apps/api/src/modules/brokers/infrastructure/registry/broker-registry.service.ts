@@ -25,7 +25,15 @@ export class BrokerRegistryService implements OnModuleInit {
     }
 
     if (this.configService.getBoolean('TRADING212_ENABLED', false)) {
-      this.brokerManager.register(new Trading212BrokerAdapter());
+      this.brokerManager.register(
+        new Trading212BrokerAdapter({
+          baseUrl: this.configService.getString('TRADING212_BASE_URL', ''),
+          environment: this.configService.getString('TRADING212_ENVIRONMENT', 'demo'),
+          timeoutMs: this.configService.getNumber('TRADING212_TIMEOUT_MS', 10000),
+          apiKey: this.configService.getString('TRADING212_API_KEY', ''),
+          apiSecret: this.configService.getString('TRADING212_API_SECRET', ''),
+        }),
+      );
     }
   }
 }

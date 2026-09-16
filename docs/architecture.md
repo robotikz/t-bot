@@ -27,6 +27,7 @@ The system is designed to support local development with PostgreSQL and a clean 
 - `HealthModule`: exposes `GET /api/health` for health-check and startup validation
 - `BrokersModule`: exposes broker abstraction metadata and manages broker adapter registration
 - `BybitBrokerAdapter`: read-only public market-data adapter for Bybit spot instruments and klines
+- `Trading212BrokerAdapter`: read-only account adapter for Trading212 Invest and Stocks ISA accounts
 
 ### Key files
 
@@ -84,6 +85,16 @@ Infrastructure
 - Candles are normalized into the existing internal `Candle` model and returned in chronological order (`oldest → newest`)
 - No database changes were required because market data is fetched directly from Bybit and not persisted by the adapter
 
+### Phase 6 scope
+
+- The Trading212 adapter is also read-only, but it intentionally advertises only `ACCOUNT`
+- Trading212 is integrated through a dedicated HTTP client under `apps/api/src/modules/brokers/infrastructure/trading212/`
+- The official Trading212 Public API currently supports HTTP Basic authentication, account summary, positions, instrument metadata, orders, and historical account events
+- Phase 6 uses only the endpoints that map cleanly into the current capability model: account summary and positions
+- The adapter maps Trading212 account cash and portfolio values into the generic `Account`, `Balance`, and `Position` domain types
+- Trading212 does not currently expose a Bybit-style candle or public market-data endpoint, so the adapter does not advertise `MARKET_DATA`
+- Unsupported official capabilities such as order placement and order history remain outside Phase 6 because the current broker abstraction has no read-only history provider and the phase is explicitly read-only
+
 ### Bybit API assumptions
 
 - Base URLs: `https://api.bybit.com` for mainnet and `https://api-testnet.bybit.com` for testnet
@@ -92,6 +103,16 @@ Infrastructure
 - Bybit REST responses use the common envelope `{ retCode, retMsg, result, retExtInfo, time }`
 - Spot instruments do not use pagination; the adapter requests the spot category directly
 - Kline responses are returned newest-first by Bybit and are re-sorted into chronological order in the adapter
+
+### Trading212 API assumptions
+
+- Base URLs: `https://demo.trading212.com/api/v0/` for paper trading and `https://live.trading212.com/api/v0/` for live trading
+- Authentication: HTTP Basic auth using API key as username and API secret as password
+- Required header: `Authorization: Basic <base64(api_key:api_secret)>`
+- Supported endpoints used in Phase 6: `GET /api/v0/equity/account/summary` and `GET /api/v0/equity/positions`
+- Account summary exposes cash, primary currency, and investment totals; positions expose quantity, average price, current price, and wallet impact
+- The API includes per-endpoint rate limits and rate-limit response headers (`x-ratelimit-*`)
+- The official API also documents metadata, orders, and historical event endpoints, but those are not surfaced by Phase 6
 
 ## Frontend architecture
 

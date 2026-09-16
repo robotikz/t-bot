@@ -19,6 +19,18 @@ export class BrokersService {
     return this.brokerManager.getBroker(id).capabilities;
   }
 
+  async getAccount(id: string) {
+    return this.brokerManager.getAccountProvider(id).getAccount();
+  }
+
+  async getBalances(id: string) {
+    return this.brokerManager.getAccountProvider(id).getBalances();
+  }
+
+  async getPositions(id: string) {
+    return this.brokerManager.getAccountProvider(id).getPositions();
+  }
+
   async getMarkets(id: string) {
     return this.brokerManager.getMarketDataProvider(id).getMarkets();
   }

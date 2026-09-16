@@ -20,9 +20,56 @@ describe('AppController (e2e)', () => {
     process.env.BYBIT_ENABLED = 'true';
     process.env.BYBIT_BASE_URL = 'https://api.bybit.com';
     process.env.BYBIT_TIMEOUT_MS = '10000';
+    process.env.TRADING212_ENABLED = 'true';
+    process.env.TRADING212_API_KEY = 'test-key';
+    process.env.TRADING212_API_SECRET = 'test-secret';
+    process.env.TRADING212_ENVIRONMENT = 'demo';
+    process.env.TRADING212_BASE_URL = 'https://demo.trading212.com/api/v0';
+    process.env.TRADING212_TIMEOUT_MS = '10000';
 
-    vi.stubGlobal('fetch', vi.fn(async (input: string | URL) => {
+    vi.stubGlobal('fetch', vi.fn(async (input: string | URL, init?: RequestInit) => {
       const url = new URL(input.toString());
+
+      if (url.pathname.endsWith('/api/v0/equity/account/summary')) {
+        expect(url.origin).toBe('https://demo.trading212.com');
+        return createResponse({
+          id: 987654,
+          currency: 'GBP',
+          cash: {
+            availableToTrade: 250,
+            reservedForOrders: 25,
+            inPies: 5,
+          },
+          investments: {
+            currentValue: 1000,
+            realizedProfitLoss: 50,
+            totalCost: 900,
+            unrealizedProfitLoss: 100,
+          },
+          totalValue: 1250,
+        });
+      }
+
+      if (url.pathname.endsWith('/api/v0/equity/positions')) {
+        expect(init?.headers).toMatchObject({
+          Authorization: 'Basic dGVzdC1rZXk6dGVzdC1zZWNyZXQ=',
+        });
+        return createResponse([
+          {
+            quantity: 5,
+            averagePricePaid: 100,
+            currentPrice: 110,
+            instrument: { ticker: 'VUSA_LN', currencyCode: 'GBP', name: 'Vanguard S&P 500 UCITS ETF' },
+            quantityAvailableForTrading: 5,
+            walletImpact: {
+              currency: 'GBP',
+              currentValue: 550,
+              totalCost: 500,
+              unrealizedProfitLoss: 50,
+            },
+          },
+        ]);
+      }
 
       if (url.pathname.endsWith('/v5/market/instruments-info')) {
         const symbol = url.searchParams.get('symbol');
@@ -106,6 +153,7 @@ describe('AppController (e2e)', () => {
       .expect(({ body }) => {
         expect(body.success).toBe(true);
         expect(body.data.some((broker: { id: string }) => broker.id === 'bybit')).toBe(true);
+        expect(body.data.some((broker: { id: string }) => broker.id === 'trading212')).toBe(true);
       });
   });
 
@@ -116,6 +164,70 @@ describe('AppController (e2e)', () => {
       .expect(({ body }) => {
         expect(body.success).toBe(true);
         expect(body.data).toEqual(['market_data']);
+      });
+  });
+
+  it('/api/brokers/trading212/capabilities exposes only account', () => {
+    return request(app.getHttpServer())
+      .get('/api/brokers/trading212/capabilities')
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.success).toBe(true);
+        expect(body.data).toEqual(['account']);
+      });
+  });
+
+  it('/api/brokers/trading212/account returns the account summary', () => {
+    return request(app.getHttpServer())
+      .get('/api/brokers/trading212/account')
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.success).toBe(true);
+        expect(body.data).toMatchObject({
+          id: '987654',
+          brokerId: 'trading212',
+          currency: 'GBP',
+          cash: 280,
+          investedValue: 1000,
+          totalValue: 1250,
+        });
+      });
+  });
+
+  it('/api/brokers/trading212/balances returns the cash balance', () => {
+    return request(app.getHttpServer())
+      .get('/api/brokers/trading212/balances')
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.success).toBe(true);
+        expect(body.data).toEqual([
+          {
+            asset: 'GBP',
+            free: 250,
+            locked: 30,
+          },
+        ]);
+      });
+  });
+
+  it('/api/brokers/trading212/positions returns open positions', () => {
+    return request(app.getHttpServer())
+      .get('/api/brokers/trading212/positions')
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.success).toBe(true);
+        expect(body.data).toEqual([
+          {
+            symbol: 'VUSA_LN',
+            size: 5,
+            entryPrice: 100,
+            currentPrice: 110,
+            marketValue: 550,
+            currency: 'GBP',
+            availableQuantity: 5,
+            unrealizedPnl: 50,
+          },
+        ]);
       });
   });
 
