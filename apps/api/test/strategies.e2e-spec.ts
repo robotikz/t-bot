@@ -12,10 +12,9 @@ function createResponse(body: unknown) {
   } as Response;
 }
 
-describe('MarketData (e2e)', () => {
+describe('Strategies (e2e)', () => {
   let app: INestApplication;
   const originalFetch = globalThis.fetch;
-  const e2eSymbol = 'BTCUSDT_E2E_MARKET_DATA';
 
   beforeAll(() => {
     process.env.BYBIT_ENABLED = 'true';
@@ -27,11 +26,11 @@ describe('MarketData (e2e)', () => {
     process.env.TRADING212_ENVIRONMENT = 'demo';
     process.env.TRADING212_BASE_URL = 'https://demo.trading212.com/api/v0';
     process.env.TRADING212_TIMEOUT_MS = '10000';
-    process.env.MARKET_DATA_MAX_CANDLES = '10';
+    process.env.MARKET_DATA_MAX_CANDLES = '50';
 
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (input: string | URL, init?: RequestInit) => {
+      vi.fn(async (input: string | URL) => {
         const url = new URL(input.toString());
 
         if (url.pathname.endsWith('/api/v0/equity/account/summary')) {
@@ -58,63 +57,42 @@ describe('MarketData (e2e)', () => {
         }
 
         if (url.pathname.endsWith('/v5/market/instruments-info')) {
-          const symbol = url.searchParams.get('symbol');
           return createResponse({
             retCode: 0,
             retMsg: 'OK',
             result: {
               category: 'spot',
-              list: symbol
-                ? [
-                    {
-                      symbol,
-                      baseCoin: 'BTC',
-                      quoteCoin: 'USDT',
-                      status: 'Trading',
-                    },
-                  ]
-                : [
-                    {
-                      symbol: 'BTCUSDT',
-                      baseCoin: 'BTC',
-                      quoteCoin: 'USDT',
-                      status: 'Trading',
-                    },
-                    {
-                      symbol: 'ETHUSDT',
-                      baseCoin: 'ETH',
-                      quoteCoin: 'USDT',
-                      status: 'Trading',
-                    },
-                  ],
+              list: [
+                {
+                  symbol: 'ETHUSDT',
+                  baseCoin: 'ETH',
+                  quoteCoin: 'USDT',
+                  status: 'Trading',
+                },
+              ],
             },
           });
         }
 
         if (url.pathname.endsWith('/v5/market/kline')) {
-          const end = url.searchParams.get('end');
-
-          if (end) {
-            return createResponse({
-              retCode: 0,
-              retMsg: 'OK',
-              result: {
-                category: 'spot',
-                symbol: 'BTCUSDT',
-                list: [['1700000000000', '100.0', '101.2', '99.5', '101.0', '10.0', '1010.0']],
-              },
-            });
-          }
-
           return createResponse({
             retCode: 0,
             retMsg: 'OK',
             result: {
               category: 'spot',
-              symbol: 'BTCUSDT',
+              symbol: 'ETHUSDT',
               list: [
-                ['1700000060000', '101.5', '102.0', '100.9', '101.1', '12.5', '1264.6'],
-                ['1700000000000', '100.0', '101.2', '99.5', '101.0', '10.0', '1010.0'],
+                ['1700000600000', '100.0', '101.0', '99.0', '100.0', '10.0', '1000.0'],
+                ['1700000540000', '100.0', '101.0', '99.0', '100.0', '10.0', '1000.0'],
+                ['1700000480000', '100.0', '101.0', '99.0', '100.0', '10.0', '1000.0'],
+                ['1700000420000', '100.0', '101.0', '99.0', '100.0', '10.0', '1000.0'],
+                ['1700000360000', '100.0', '101.0', '99.0', '100.0', '10.0', '1000.0'],
+                ['1700000300000', '100.0', '101.0', '99.0', '100.0', '10.0', '1000.0'],
+                ['1700000240000', '100.0', '101.0', '99.0', '100.0', '10.0', '1000.0'],
+                ['1700000180000', '100.0', '101.0', '99.0', '100.0', '10.0', '1000.0'],
+                ['1700000120000', '100.0', '101.0', '99.0', '100.0', '10.0', '1000.0'],
+                ['1700000060000', '100.0', '101.0', '99.0', '100.0', '10.0', '1000.0'],
+                ['1700000000000', '100.0', '101.0', '99.0', '100.0', '10.0', '1000.0'],
               ],
             },
           });
@@ -135,42 +113,39 @@ describe('MarketData (e2e)', () => {
     await app.init();
   });
 
-  it('/api/market-data/markets (GET)', () => {
+  it('/api/strategies (GET)', () => {
     return request(app.getHttpServer())
-      .get('/api/market-data/markets?broker=bybit')
+      .get('/api/strategies')
       .expect(200)
       .expect(({ body }) => {
         expect(body.success).toBe(true);
         expect(body.data).toEqual([
-          { symbol: 'BTCUSDT', baseAsset: 'BTC', quoteAsset: 'USDT', active: true },
-          { symbol: 'ETHUSDT', baseAsset: 'ETH', quoteAsset: 'USDT', active: true },
+          {
+            id: 'ema-crossover',
+            name: 'EMA Crossover',
+            description: 'Generates signals from fast/slow EMA crossovers',
+          },
+          {
+            id: 'rsi',
+            name: 'RSI',
+            description: 'Generates signals from RSI overbought/oversold levels',
+          },
         ]);
       });
   });
 
-  it('/api/market-data/candles/load persists candles once and returns chronological data', async () => {
-    await request(app.getHttpServer())
-      .get(`/api/market-data/candles/load?broker=bybit&symbol=${e2eSymbol}&timeframe=1h&limit=2`)
+  it('/api/strategies/:strategyId/evaluate (GET)', () => {
+    return request(app.getHttpServer())
+      .get('/api/strategies/ema-crossover/evaluate?broker=bybit&symbol=ETHUSDT&timeframe=1h')
       .expect(200)
       .expect(({ body }) => {
         expect(body.success).toBe(true);
-        expect(body.data).toHaveLength(2);
-        expect(body.data[0].openTime).toBe('2023-11-14T22:13:20.000Z');
-        expect(body.data[1].openTime).toBe('2023-11-14T22:14:20.000Z');
-      });
-
-    await request(app.getHttpServer())
-      .get(`/api/market-data/candles/load?broker=bybit&symbol=${e2eSymbol}&timeframe=1h&limit=2`)
-      .expect(200);
-
-    await request(app.getHttpServer())
-      .get(`/api/market-data/candles?broker=bybit&symbol=${e2eSymbol}&timeframe=1h&limit=10`)
-      .expect(200)
-      .expect(({ body }) => {
-        expect(body.success).toBe(true);
-        expect(body.data).toHaveLength(2);
-        expect(body.data[0].openTime).toBe('2023-11-14T22:13:20.000Z');
-        expect(body.data[1].openTime).toBe('2023-11-14T22:14:20.000Z');
+        expect(body.data.strategyId).toBe('ema-crossover');
+        expect(body.data.symbol).toBe('ETHUSDT');
+        expect(body.data.timeframe).toBe('H1');
+        expect(body.data.type).toBe('HOLD');
+        expect(body.data.indicators).toHaveProperty('emaFast');
+        expect(body.data.indicators).toHaveProperty('emaSlow');
       });
   });
 

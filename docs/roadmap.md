@@ -2,73 +2,52 @@
 
 ## Current status
 
-The repository is in the foundation phase. The base monorepo, backend, frontend, Prisma, and local Docker/database setup are already in place.
+Phases 1–8 are implemented through a read-only, broker-agnostic strategy evaluation stack:
 
-## Phase 1: Platform foundation
+- broker abstractions and adapters
+- market-data engine
+- indicator engine (EMA/RSI)
+- strategy registry and evaluation API
 
-Status: Complete
+No order execution is implemented yet.
 
-- pnpm workspace monorepo
-- NestJS backend shell
-- Angular frontend shell
-- Prisma + PostgreSQL setup
-- Docker Compose local environment
-- health-check and basic UI wiring
+## Completed phases
 
-## Phase 2: Product and domain model
+- Phase 1: Platform foundation
+- Phase 2: Core infrastructure
+- Phase 3: Domain foundation
+- Phase 4: Broker abstraction layer
+- Phase 5: Bybit adapter (read-only)
+- Phase 6: Trading212 adapter (read-only account scope)
+- Phase 7: Market-data engine
+- Phase 8: Strategy engine and signals
 
-Status: Planned
+## Next planned phases
 
-- user/account domain model
-- application configuration storage
-- roles and permissions as needed
-- shared DTO and validation patterns
-- service boundaries for trading features
+### Phase 9: Backtesting and strategy analytics
 
-## Phase 3: Market data and execution
+- historical replay over stored candles
+- strategy performance metrics and reporting
+- parameter optimization workflows
+- deterministic simulation inputs and outputs
 
-Status: Planned
+### Phase 10: Execution foundation (paper first)
 
-- exchange/account connection layer
-- market-data adapters
-- symbol and instrument models
-- order placement and event handling
-- execution tracking and trade records
+- signal-to-order orchestration boundary
+- paper-trading execution adapter
+- execution audit trail and signal persistence
+- initial position sizing hooks
 
-## Phase 4: Strategy and automation
+### Phase 11: Risk and controls
 
-Status: Planned
+- pre-trade risk checks
+- position limits and exposure controls
+- stop-loss/take-profit policy evaluation
+- strategy-level guardrails
 
-- strategy definitions and lifecycle
-- signal generation and backtests
-- scheduler/background jobs
-- risk checks and guardrails
-- alerting and monitoring
+### Phase 12: Live operations
 
-## Phase 5: Operations and deployment
-
-Status: Planned
-
-- production-ready env handling
-- CI/CD pipeline
-- containerized deployments
-- observability and logs
-- error tracking and health monitoring
-
-## Immediate next steps
-
-1. Confirm the baseline API and frontend run reliably in the local environment.
-2. Add a stronger domain model around users and configuration.
-3. Define the first real business service beyond the health endpoint.
-4. Introduce a minimal market-data or account abstraction to anchor the next feature work.
-
-## Guidance for future work
-
-Each new milestone should be implemented in a way that preserves the clean separation between:
-
-- app shell and UI
-- API modules and services
-- data models and Prisma schema
-- shared utilities
-
-This keeps the repo maintainable as the trading stack expands.
+- scheduler/background workers for strategy runs
+- broader market-data ingestion (streaming and repair)
+- observability, alerting, and production hardening
+- CI/CD and deployment workflows

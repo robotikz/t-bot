@@ -13,6 +13,9 @@
     "api:start": "pnpm --dir apps/api start",
     "web:start": "pnpm --dir apps/web start",
     "web:build": "pnpm --dir apps/web build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "format": "pnpm -r format"
   },

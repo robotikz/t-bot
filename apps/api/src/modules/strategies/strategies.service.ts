@@ -1,12 +1,26 @@
 import { Injectable } from '@nestjs/common';
-import { StrategyRepository } from './strategy.repository.js';
-import { ListStrategiesDto } from './dto/list-strategies.dto.js';
+import { MARKET_DATA_PUBLIC_TIMEFRAME_TO_DOMAIN_TIMEFRAME } from '../market-data/market-data.constants.js';
+import { StrategyEvaluationService } from './application/strategy-evaluation.service.js';
+import { StrategyRegistry } from './application/strategy-registry.service.js';
+import { EvaluateStrategyDto } from './dto/evaluate-strategy.dto.js';
 
 @Injectable()
 export class StrategiesService {
-  constructor(private readonly repo: StrategyRepository) {}
+  constructor(
+    private readonly strategyRegistry: StrategyRegistry,
+    private readonly strategyEvaluationService: StrategyEvaluationService,
+  ) {}
 
-  async list(query: ListStrategiesDto) {
-    return this.repo.findAll(query);
+  list() {
+    return this.strategyRegistry.list();
+  }
+
+  async evaluate(strategyId: string, query: EvaluateStrategyDto) {
+    return this.strategyEvaluationService.evaluate({
+      brokerId: query.broker,
+      symbol: query.symbol,
+      timeframe: MARKET_DATA_PUBLIC_TIMEFRAME_TO_DOMAIN_TIMEFRAME[query.timeframe],
+      strategyId,
+    });
   }
 }

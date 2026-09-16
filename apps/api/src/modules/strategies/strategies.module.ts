@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common';
 import { StrategiesController } from './strategies.controller.js';
 import { StrategiesService } from './strategies.service.js';
-import { StrategyRepository } from './strategy.repository.js';
-import { PrismaModule } from '../../prisma/prisma.module.js';
+import { MarketDataModule } from '../market-data/market-data.module.js';
+import { StrategyEvaluationService } from './application/strategy-evaluation.service.js';
+import { StrategyRegistry } from './application/strategy-registry.service.js';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [MarketDataModule],
   controllers: [StrategiesController],
-  providers: [StrategiesService, StrategyRepository],
+  providers: [StrategiesService, StrategyRegistry, StrategyEvaluationService],
   exports: [StrategiesService],
 })
 export class StrategiesModule {}

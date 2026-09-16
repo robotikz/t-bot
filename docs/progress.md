@@ -113,3 +113,33 @@ Next: install runtime dependencies and run end-to-end validation.
 - Added unit tests for the market-data service and candle repository, plus e2e coverage for the new API
 - Verified the implementation with `pnpm install`, typecheck, lint, unit tests, e2e tests, build, and live read-only Bybit smoke tests
 
+## Phase 8 – Strategy Engine & Signals
+
+**Date:** 2026-09-16
+**Status:** Implemented
+
+- Added broker-agnostic strategy domain abstractions:
+  - `Strategy`
+  - `StrategyContext`
+  - unified `Signal` model with `BUY`, `SELL`, `HOLD`
+- Added a lightweight indicator engine with internal deterministic implementations for:
+  - EMA (configurable period)
+  - RSI (Wilder smoothing convention, configurable period)
+- Added two first strategies:
+  - `ema-crossover` (default fast=9, slow=21)
+  - `rsi` (default period=14, oversold=30, overbought=70)
+- Added explicit closed-candle filtering so strategy evaluation ignores forming candles
+- Added `StrategyRegistry` for listing, lookup, and broker-agnostic evaluation dispatch
+- Added `StrategyEvaluationService` that coordinates market data loading and strategy evaluation
+- Added strategy API endpoints:
+  - `GET /api/strategies`
+  - `GET /api/strategies/:strategyId/evaluate?broker=...&symbol=...&timeframe=...`
+- Added unit coverage for indicators, strategies, registry, and evaluation orchestration
+- Added e2e coverage for strategy listing and strategy evaluation routes
+- Deferred frontend strategy inspection UI to a later incremental UI phase to keep Phase 8 focused on backend strategy evaluation contracts
+- Kept scope read-only and analytical only:
+  - no order execution
+  - no paper/live trading
+  - no strategy scheduling
+  - no signal persistence
+

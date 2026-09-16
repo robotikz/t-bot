@@ -1,13 +1,18 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { StrategiesService } from './strategies.service.js';
-import { ListStrategiesDto } from './dto/list-strategies.dto.js';
+import { EvaluateStrategyDto } from './dto/evaluate-strategy.dto.js';
 
 @Controller('strategies')
 export class StrategiesController {
   constructor(private readonly service: StrategiesService) {}
 
   @Get()
-  async list(@Query() query: ListStrategiesDto) {
-    return this.service.list(query);
+  async list() {
+    return this.service.list();
+  }
+
+  @Get(':strategyId/evaluate')
+  async evaluate(@Param('strategyId') strategyId: string, @Query() query: EvaluateStrategyDto) {
+    return this.service.evaluate(strategyId, query);
   }
 }

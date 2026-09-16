@@ -28,6 +28,8 @@ The system is designed to support local development with PostgreSQL and a clean 
 - `BrokersModule`: exposes broker abstraction metadata and manages broker adapter registration
 - `BybitBrokerAdapter`: read-only public market-data adapter for Bybit spot instruments and klines
 - `Trading212BrokerAdapter`: read-only account adapter for Trading212 Invest and Stocks ISA accounts
+- `MarketDataModule`: broker-agnostic candle fetch/ingest/read orchestration
+- `StrategiesModule`: broker-agnostic strategy registry and signal evaluation endpoints
 
 ### Key files
 
@@ -41,7 +43,8 @@ The system is designed to support local development with PostgreSQL and a clean 
 
 - Global prefix is `/api`
 - Health endpoint is `GET /api/health`
-- Broker endpoints are read-only in Phase 4: `GET /api/brokers`, `GET /api/brokers/:id`, `GET /api/brokers/:id/capabilities`
+- Broker endpoints are read-only in Phase 4+: `GET /api/brokers`, `GET /api/brokers/:id`, `GET /api/brokers/:id/capabilities`
+- Strategy endpoints are read-only in Phase 8: `GET /api/strategies`, `GET /api/strategies/:strategyId/evaluate`
 - CORS is enabled for `http://localhost:4200` during local development
 
 ## Broker abstraction layer
@@ -105,6 +108,41 @@ Infrastructure
 - Candle closure is computed from timestamps and the current time; incomplete candles remain distinguishable without pushing broker-specific state into the domain layer
 - Historical loading uses small broker-backed pagination and enforces a safe maximum candle count via configuration
 - Trading212 remains an `ACCOUNT`-only adapter and is intentionally excluded from market-data candle support
+
+### Phase 8 scope
+
+- Added a broker-agnostic strategy engine that evaluates normalized candle data and produces analytical signals
+- Added a unified signal model with `BUY`, `SELL`, and `HOLD` types
+- Added an indicator engine with internal EMA and RSI implementations
+- Added first strategies:
+  - EMA crossover (`ema-crossover`, default fast=9, slow=21)
+  - RSI threshold strategy (`rsi`, default period=14, oversold=30, overbought=70)
+- Added a strategy registry for list/lookup/evaluate without HTTP coupling
+- Added an application-level strategy evaluation service that coordinates:
+  - market-data loading through `MarketDataService`
+  - strategy selection through `StrategyRegistry`
+  - strategy execution on normalized `Candle[]`
+- Strategy evaluation explicitly filters for closed candles and does not assume the last array element is closed
+- Signals are not persisted in Phase 8 and are returned as read/evaluation results only
+- No order execution, live trading, paper trading, scheduling, or backtesting is included in this phase
+
+Strategy architecture:
+
+PostgreSQL
+	↓
+Market Data Engine
+	↓
+Candle[]
+	↓
+Indicator Engine
+	↓
+EMA / RSI
+	↓
+Strategy Engine
+	↓
+Signal
+	↓
+REST API
 
 ### Bybit API assumptions
 

@@ -43,6 +43,20 @@
 - Extend the market-data engine with additional providers once more brokers expose compatible candle feeds
 - Add repository-level integration coverage against a disposable test database for the Candle unique constraint and idempotent upserts
 
+## Strategy engine follow-up backlog (post Phase 8)
+
+- Backtesting engine for historical strategy replay
+- Strategy parameter optimization workflows
+- Strategy performance metrics and reporting
+- Signal persistence and audit history
+- Paper-trading execution pipeline
+- Risk management rules and pre-trade controls
+- Position sizing framework
+- Order execution engine and broker trading adapters
+- Live trading lifecycle and safety controls
+- Strategy scheduling and background workers
+- WebSocket market-data ingestion support
+
 ## Remaining backlog (post Phase 2)
 
 - Add user/account domain model and schema expansion beyond the bootstrap model
