@@ -95,3 +95,21 @@ Next: install runtime dependencies and run end-to-end validation.
   - `GET /api/brokers/trading212/positions`
 - Kept Trading212 disabled by default and safe to omit from local startup configuration
 - Verified the implementation with unit tests, e2e tests, lint, typecheck, build, and safe read-only live API calls to Trading212 live using local credentials
+
+## Phase 7 – Market Data Engine
+
+**Date:** 2026-09-16
+**Status:** Completed
+
+- Added a broker-agnostic `MarketDataModule` with explicit `fetch`, `ingest`, `read`, and historical `load` flows
+- Extended the Candle persistence model with broker-aware identity: `brokerId + symbol + timeframe + openTime`
+- Added a database uniqueness constraint and broker-aware index so duplicate ingestions are idempotent
+- Added candle validation, chronological normalization, and computed incomplete-candle handling in the market-data engine
+- Added a unified read-only market-data API:
+  - `GET /api/market-data/markets?broker=bybit`
+  - `GET /api/market-data/candles?broker=bybit&symbol=BTCUSDT&timeframe=1h&limit=100`
+  - `GET /api/market-data/candles/load?broker=bybit&symbol=BTCUSDT&timeframe=1h&limit=100`
+- Kept Bybit-specific API parsing inside the Bybit adapter and HTTP client; the market-data layer only uses generic broker and candle types
+- Added unit tests for the market-data service and candle repository, plus e2e coverage for the new API
+- Verified the implementation with `pnpm install`, typecheck, lint, unit tests, e2e tests, build, and live read-only Bybit smoke tests
+

@@ -12,8 +12,12 @@ export interface AppConfig {
   BYBIT_API_KEY: string;
   BYBIT_API_SECRET: string;
   TRADING212_ENABLED: string;
+  TRADING212_BASE_URL: string;
+  TRADING212_TIMEOUT_MS: number;
+  TRADING212_ENVIRONMENT: string;
   TRADING212_API_KEY: string;
   TRADING212_API_SECRET: string;
+  MARKET_DATA_MAX_CANDLES: number;
 }
 
 export const configuration = (): AppConfig => ({
@@ -31,6 +35,10 @@ export const configuration = (): AppConfig => ({
   BYBIT_API_KEY: process.env.BYBIT_API_KEY ?? '',
   BYBIT_API_SECRET: process.env.BYBIT_API_SECRET ?? '',
   TRADING212_ENABLED: process.env.TRADING212_ENABLED ?? 'false',
+  TRADING212_BASE_URL: process.env.TRADING212_BASE_URL ?? '',
+  TRADING212_TIMEOUT_MS: Number.parseInt(process.env.TRADING212_TIMEOUT_MS ?? '10000', 10),
+  TRADING212_ENVIRONMENT: process.env.TRADING212_ENVIRONMENT ?? 'demo',
   TRADING212_API_KEY: process.env.TRADING212_API_KEY ?? '',
   TRADING212_API_SECRET: process.env.TRADING212_API_SECRET ?? '',
+  MARKET_DATA_MAX_CANDLES: Number.parseInt(process.env.MARKET_DATA_MAX_CANDLES ?? '500', 10),
 });

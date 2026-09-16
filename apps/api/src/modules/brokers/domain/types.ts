@@ -29,6 +29,7 @@ export interface Instrument {
 }
 
 export interface Candle {
+  brokerId?: BrokerId;
   symbol: Symbol;
   timeframe: Timeframe;
   openTime: Date;
@@ -38,6 +39,7 @@ export interface Candle {
   low: number;
   close: number;
   volume: number;
+  isClosed?: boolean;
 }
 
 export interface Balance {
@@ -50,6 +52,10 @@ export interface Position {
   symbol: Symbol;
   size: number;
   entryPrice?: number;
+  currentPrice?: number;
+  marketValue?: number;
+  currency?: string;
+  availableQuantity?: number;
   unrealizedPnl?: number;
 }
 
@@ -79,6 +85,12 @@ export interface Order {
 export interface Account {
   id: string;
   brokerId: BrokerId;
+  currency?: string;
+  cash?: number;
+  investedValue?: number;
+  totalValue?: number;
+  realizedPnl?: number;
+  unrealizedPnl?: number;
   balances?: Balance[];
 }
 

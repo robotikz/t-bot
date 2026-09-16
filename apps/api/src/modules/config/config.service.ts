@@ -15,8 +15,12 @@ export type AppConfigKey =
   | 'BYBIT_API_KEY'
   | 'BYBIT_API_SECRET'
   | 'TRADING212_ENABLED'
+  | 'TRADING212_BASE_URL'
+  | 'TRADING212_TIMEOUT_MS'
+  | 'TRADING212_ENVIRONMENT'
   | 'TRADING212_API_KEY'
-  | 'TRADING212_API_SECRET';
+  | 'TRADING212_API_SECRET'
+  | 'MARKET_DATA_MAX_CANDLES';
 
 @Injectable()
 export class ConfigService {
@@ -26,7 +30,10 @@ export class ConfigService {
     return this.configService.get<string>(key, defaultValue) ?? defaultValue;
   }
 
-  getNumber(key: 'PORT' | 'BYBIT_TIMEOUT_MS', defaultValue = 3000): number {
+  getNumber(
+    key: 'PORT' | 'BYBIT_TIMEOUT_MS' | 'TRADING212_TIMEOUT_MS' | 'MARKET_DATA_MAX_CANDLES',
+    defaultValue = 3000,
+  ): number {
     const value = this.configService.get<string>(key, String(defaultValue));
     return Number(value ?? defaultValue);
   }

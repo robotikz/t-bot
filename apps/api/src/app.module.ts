@@ -12,10 +12,11 @@ import { CandlesModule } from './modules/candles/candles.module.js';
 import { OrdersModule } from './modules/orders/orders.module.js';
 import { TradesModule } from './modules/trades/trades.module.js';
 import { BrokersModule } from './modules/brokers/brokers.module.js';
+import { MarketDataModule } from './modules/market-data/market-data.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 
 @Module({
-  imports: [ConfigModule, LoggerModule, PrismaModule, HealthModule, ExchangesModule, StrategiesModule, CandlesModule, OrdersModule, TradesModule, BrokersModule],
+  imports: [ConfigModule, LoggerModule, PrismaModule, HealthModule, ExchangesModule, StrategiesModule, CandlesModule, OrdersModule, TradesModule, BrokersModule, MarketDataModule],
   providers: [
     {
       provide: APP_INTERCEPTOR,

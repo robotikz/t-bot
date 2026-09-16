@@ -1,4 +1,4 @@
-import { IsOptional, IsBooleanString, IsBoolean, IsIn } from 'class-validator';
+import { IsOptional, IsBoolean, IsIn } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ExchangeName } from '../../../common/enums.js';
 

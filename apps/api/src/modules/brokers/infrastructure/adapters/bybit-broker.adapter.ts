@@ -68,7 +68,12 @@ export class BybitBrokerAdapter implements BrokerAdapter, MarketDataProvider {
     return mapBybitInstrumentResponse(response.result);
   }
 
-  async getCandles(symbol: string, timeframe: Timeframe, limit?: number): Promise<Candle[]> {
+  async getCandles(
+    symbol: string,
+    timeframe: Timeframe,
+    limit?: number,
+    options?: { beforeOpenTime?: Date },
+  ): Promise<Candle[]> {
     const interval = getBybitInterval(timeframe);
     const intervalMs = getBybitIntervalMs(timeframe);
 
@@ -76,7 +81,13 @@ export class BybitBrokerAdapter implements BrokerAdapter, MarketDataProvider {
       throw new BybitUnsupportedTimeframeException(timeframe);
     }
 
-    const response = await this.client.getKline(BYBIT_MARKET_CATEGORY, symbol, interval, limit);
+    const response = await this.client.getKline(
+      BYBIT_MARKET_CATEGORY,
+      symbol,
+      interval,
+      limit,
+      options?.beforeOpenTime ? options.beforeOpenTime.getTime() - 1 : undefined,
+    );
     return mapBybitCandlesResponse(response.result, symbol, timeframe, intervalMs);
   }
 }

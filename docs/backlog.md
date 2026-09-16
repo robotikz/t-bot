@@ -35,6 +35,14 @@
 - Add capability-specific integration tests for broker adapters
 - Revisit Trading212 if the official API adds candle or broader market-data support later
 
+## Market-data follow-up backlog
+
+- Add incremental historical synchronization so the engine can backfill more than one page at a time for long date ranges
+- Add broker-specific market-data health diagnostics and latency tracking
+- Add optional market-data repair/replay workflows for future backtesting import jobs
+- Extend the market-data engine with additional providers once more brokers expose compatible candle feeds
+- Add repository-level integration coverage against a disposable test database for the Candle unique constraint and idempotent upserts
+
 ## Remaining backlog (post Phase 2)
 
 - Add user/account domain model and schema expansion beyond the bootstrap model

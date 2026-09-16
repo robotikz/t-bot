@@ -8,6 +8,6 @@ import { PrismaModule } from '../../prisma/prisma.module.js';
   imports: [PrismaModule],
   controllers: [CandlesController],
   providers: [CandlesService, CandleRepository],
-  exports: [CandlesService],
+  exports: [CandlesService, CandleRepository],
 })
 export class CandlesModule {}

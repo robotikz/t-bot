@@ -60,6 +60,7 @@ model Strategy {
 
 model Candle {
   id        String    @id @default(cuid())
+  brokerId  String
   symbol    String
   timeframe Timeframe
   openTime  DateTime
@@ -70,7 +71,8 @@ model Candle {
   close     Float
   volume    Float
 
-  @@index([symbol, timeframe, closeTime])
+  @@unique([brokerId, symbol, timeframe, openTime])
+  @@index([brokerId, symbol, timeframe, closeTime])
 }
 
 model Order {

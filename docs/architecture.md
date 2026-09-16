@@ -95,6 +95,17 @@ Infrastructure
 - Trading212 does not currently expose a Bybit-style candle or public market-data endpoint, so the adapter does not advertise `MARKET_DATA`
 - Unsupported official capabilities such as order placement and order history remain outside Phase 6 because the current broker abstraction has no read-only history provider and the phase is explicitly read-only
 
+### Phase 7 scope
+
+- Added a unified `MarketDataModule` that sits between broker adapters and the candle store
+- The market-data service is broker-agnostic and only depends on `BrokerManager`, `MarketDataProvider`, and the existing candle repository
+- The engine separates `fetch` (broker read), `ingest` (validate + persist), and `read` (PostgreSQL query) operations
+- Candle identity is canonicalized as `brokerId + symbol + timeframe + openTime`, backed by a database unique constraint to make ingestion idempotent
+- Candle reads are ordered `oldest → newest` throughout the engine, matching the Bybit adapter’s normalized order
+- Candle closure is computed from timestamps and the current time; incomplete candles remain distinguishable without pushing broker-specific state into the domain layer
+- Historical loading uses small broker-backed pagination and enforces a safe maximum candle count via configuration
+- Trading212 remains an `ACCOUNT`-only adapter and is intentionally excluded from market-data candle support
+
 ### Bybit API assumptions
 
 - Base URLs: `https://api.bybit.com` for mainnet and `https://api-testnet.bybit.com` for testnet
@@ -103,6 +114,7 @@ Infrastructure
 - Bybit REST responses use the common envelope `{ retCode, retMsg, result, retExtInfo, time }`
 - Spot instruments do not use pagination; the adapter requests the spot category directly
 - Kline responses are returned newest-first by Bybit and are re-sorted into chronological order in the adapter
+- When the market-data engine reloads historical candles, it pages through the adapter with bounded requests instead of requesting an unlimited history window
 
 ### Trading212 API assumptions
 
@@ -147,7 +159,8 @@ The application is intentionally minimal at the data layer:
 
 - Postgres is started via Docker Compose
 - Prisma is the interface between the NestJS app and the database
-- The current schema is intentionally small and extensible for future user/account/trading entities
+- The Candle model now includes broker-aware uniqueness on `(brokerId, symbol, timeframe, openTime)` so multiple market-data providers cannot collide
+- The current schema remains intentionally small and extensible for future user/account/trading entities
 
 ## Local development flow
 
@@ -169,7 +182,7 @@ The frontend calls the backend health endpoint to confirm connectivity.
 The next natural expansion areas are:
 
 - user/auth domain model
-- market-data adapters and ingestion pipelines
+- additional market-data providers and historical sync strategies
 - strategy and signal engine
 - portfolio/account state
 - alerts, jobs, and background workers

@@ -54,12 +54,14 @@ export class BybitHttpClient {
     symbol: string,
     interval: string,
     limit?: number,
+    end?: number,
   ): Promise<BybitApiEnvelope<BybitKlineResult>> {
     return this.request<BybitKlineResult>('/v5/market/kline', {
       category,
       symbol,
       interval,
       ...(typeof limit === 'number' ? { limit: String(limit) } : {}),
+      ...(typeof end === 'number' ? { end: String(end) } : {}),
     });
   }
 
