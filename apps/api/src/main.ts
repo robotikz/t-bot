@@ -22,8 +22,9 @@ async function bootstrap() {
     }),
   );
 
+  const frontendUrl = config.getString('FRONTEND_URL', 'http://localhost:4200');
   app.enableCors({
-    origin: config.getString('FRONTEND_URL', 'http://localhost:4200'),
+    origin: [frontendUrl, 'http://127.0.0.1:4200', 'http://localhost:4200'],
     credentials: true,
   });
 
