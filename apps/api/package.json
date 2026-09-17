@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "start:dev": "node --loader ts-node/esm --experimental-specifier-resolution=node src/main.ts",
+    "start:dev": "pnpm build && pnpm start",
     "start": "node -r dotenv/config ./dist/main.js",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
