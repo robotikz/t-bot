@@ -49,9 +49,15 @@ type ChartMarker = {
         </div>
 
         <div class="status-pill" [class.loading]="isRunningBacktest || isLoadingReferenceData">
-          <span *ngIf="isLoadingReferenceData">Loading configuration…</span>
-          <span *ngIf="!isLoadingReferenceData && isRunningBacktest">Running backtest…</span>
-          <span *ngIf="!isLoadingReferenceData && !isRunningBacktest">Ready</span>
+          @if (isLoadingReferenceData) {
+            <span>Loading configuration…</span>
+          }
+          @if (!isLoadingReferenceData && isRunningBacktest) {
+            <span>Running backtest…</span>
+          }
+          @if (!isLoadingReferenceData && !isRunningBacktest) {
+            <span>Ready</span>
+          }
         </div>
       </header>
 
@@ -60,7 +66,9 @@ type ChartMarker = {
           <mat-form-field appearance="outline">
             <mat-label>Broker</mat-label>
             <mat-select formControlName="broker" (selectionChange)="onBrokerChange()">
-              <mat-option *ngFor="let broker of brokers" [value]="broker.id">{{ broker.name }}</mat-option>
+              @for (broker of brokers; track broker.id) {
+                <mat-option [value]="broker.id">{{ broker.name }}</mat-option>
+              }
             </mat-select>
           </mat-form-field>
 
@@ -72,14 +80,18 @@ type ChartMarker = {
           <mat-form-field appearance="outline">
             <mat-label>Timeframe</mat-label>
             <mat-select formControlName="timeframe">
-              <mat-option *ngFor="let timeframe of timeframes" [value]="timeframe.value">{{ timeframe.label }}</mat-option>
+              @for (timeframe of timeframes; track timeframe.value) {
+                <mat-option [value]="timeframe.value">{{ timeframe.label }}</mat-option>
+              }
             </mat-select>
           </mat-form-field>
 
           <mat-form-field appearance="outline">
             <mat-label>Strategy</mat-label>
             <mat-select formControlName="strategyId">
-              <mat-option *ngFor="let strategy of strategies" [value]="strategy.id">{{ strategy.name }}</mat-option>
+              @for (strategy of strategies; track strategy.id) {
+                <mat-option [value]="strategy.id">{{ strategy.name }}</mat-option>
+              }
             </mat-select>
           </mat-form-field>
 
@@ -111,8 +123,12 @@ type ChartMarker = {
           </div>
         </form>
 
-        <p *ngIf="errorMessage" class="error-message">{{ errorMessage }}</p>
-        <p *ngIf="form.invalid && form.touched" class="error-message">Please fill in a valid trading configuration.</p>
+        @if (errorMessage) {
+          <p class="error-message">{{ errorMessage }}</p>
+        }
+        @if (form.invalid && form.touched) {
+          <p class="error-message">Please fill in a valid trading configuration.</p>
+        }
       </mat-card>
 
       <mat-card class="panel chart-panel">
@@ -129,75 +145,88 @@ type ChartMarker = {
           <a href="https://www.tradingview.com" target="_blank" rel="noreferrer">TradingView Lightweight Charts™</a>
         </p>
 
-        <div *ngIf="isRsiStrategy && rsiSeriesData.length" class="indicator-section">
-          <h3>RSI</h3>
-          <div class="chart-wrapper small" #indicatorChartHost></div>
-        </div>
+        @if (isRsiStrategy && rsiSeriesData.length) {
+          <div class="indicator-section">
+            <h3>RSI</h3>
+            <div class="chart-wrapper small" #indicatorChartHost></div>
+          </div>
+        }
       </mat-card>
 
-      <div class="stats-grid" *ngIf="result">
-        <mat-card class="panel stat-card" *ngFor="let metric of metricCards">
-          <p class="metric-label">{{ metric.label }}</p>
-          <p class="metric-value">{{ metric.value }}</p>
+      @if (result) {
+        <div class="stats-grid">
+          @for (metric of metricCards; track metric.label) {
+            <mat-card class="panel stat-card">
+              <p class="metric-label">{{ metric.label }}</p>
+              <p class="metric-value">{{ metric.value }}</p>
+            </mat-card>
+          }
+        </div>
+      }
+
+      @if (result; as backtestResult) {
+        <mat-card class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Equity Curve</h2>
+              <p>Chronological equity curve from the backtest result.</p>
+            </div>
+          </div>
+          <div class="chart-wrapper equity" #equityChartHost></div>
         </mat-card>
-      </div>
 
-      <mat-card class="panel" *ngIf="result">
-        <div class="panel-header">
-          <div>
-            <h2>Equity Curve</h2>
-            <p>Chronological equity curve from the backtest result.</p>
+        <mat-card class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Trade History</h2>
+              @if (backtestResult.trades.length) {
+                <p>Completed long trades generated by the backtest engine.</p>
+              } @else {
+                <p>No trades generated for the selected configuration.</p>
+              }
+            </div>
           </div>
-        </div>
-        <div class="chart-wrapper equity" #equityChartHost></div>
-      </mat-card>
 
-      <mat-card class="panel" *ngIf="result">
-        <div class="panel-header">
-          <div>
-            <h2>Trade History</h2>
-            <p *ngIf="result.trades.length">Completed long trades generated by the backtest engine.</p>
-            <p *ngIf="!result.trades.length">No trades generated for the selected configuration.</p>
-          </div>
-        </div>
-
-        <div class="table-wrap" *ngIf="result.trades.length; else noTrades">
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Entry Time</th>
-                <th>Exit Time</th>
-                <th>Entry Price</th>
-                <th>Exit Price</th>
-                <th>Quantity</th>
-                <th>Gross P&amp;L</th>
-                <th>Fees</th>
-                <th>Net P&amp;L</th>
-                <th>Return %</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let trade of result.trades; index as index">
-                <td>{{ index + 1 }}</td>
-                <td>{{ trade.entryTime | date: 'medium' }}</td>
-                <td>{{ trade.exitTime | date: 'medium' }}</td>
-                <td>{{ trade.entryPrice | number: '1.2-2' }}</td>
-                <td>{{ trade.exitPrice | number: '1.2-2' }}</td>
-                <td>{{ trade.quantity | number: '1.4-4' }}</td>
-                <td [class.positive]="trade.grossPnl >= 0" [class.negative]="trade.grossPnl < 0">{{ trade.grossPnl | number: '1.2-2' }}</td>
-                <td>{{ trade.fees | number: '1.2-2' }}</td>
-                <td [class.positive]="trade.netPnl >= 0" [class.negative]="trade.netPnl < 0">{{ trade.netPnl | number: '1.2-2' }}</td>
-                <td [class.positive]="trade.returnPercent >= 0" [class.negative]="trade.returnPercent < 0">{{ trade.returnPercent | number: '1.2-2' }}%</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <ng-template #noTrades>
-          <p class="empty-state">No trades generated.</p>
-        </ng-template>
-      </mat-card>
+          @if (backtestResult.trades.length) {
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Entry Time</th>
+                    <th>Exit Time</th>
+                    <th>Entry Price</th>
+                    <th>Exit Price</th>
+                    <th>Quantity</th>
+                    <th>Gross P&amp;L</th>
+                    <th>Fees</th>
+                    <th>Net P&amp;L</th>
+                    <th>Return %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (trade of backtestResult.trades; track $index; let index = $index) {
+                    <tr>
+                      <td>{{ index + 1 }}</td>
+                      <td>{{ trade.entryTime | date: 'medium' }}</td>
+                      <td>{{ trade.exitTime | date: 'medium' }}</td>
+                      <td>{{ trade.entryPrice | number: '1.2-2' }}</td>
+                      <td>{{ trade.exitPrice | number: '1.2-2' }}</td>
+                      <td>{{ trade.quantity | number: '1.4-4' }}</td>
+                      <td [class.positive]="trade.grossPnl >= 0" [class.negative]="trade.grossPnl < 0">{{ trade.grossPnl | number: '1.2-2' }}</td>
+                      <td>{{ trade.fees | number: '1.2-2' }}</td>
+                      <td [class.positive]="trade.netPnl >= 0" [class.negative]="trade.netPnl < 0">{{ trade.netPnl | number: '1.2-2' }}</td>
+                      <td [class.positive]="trade.returnPercent >= 0" [class.negative]="trade.returnPercent < 0">{{ trade.returnPercent | number: '1.2-2' }}%</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else {
+            <p class="empty-state">No trades generated.</p>
+          }
+        </mat-card>
+      }
     </section>
   `,
   styles: [
