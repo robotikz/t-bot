@@ -1,0 +1,79 @@
+name: Deploy Scanner (Cloud Run)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/bybit-market-scanner/**'
+      - 'packages/shared/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'apps/bybit-market-scanner/Dockerfile'
+      - '.github/workflows/deploy-scanner.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ vars.GCP_REGION }}
+  GAR_REPOSITORY: ${{ vars.GAR_REPOSITORY }}
+  SCANNER_RUN_SERVICE: ${{ vars.SCANNER_RUN_SERVICE }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.3.4
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run scanner tests
+        run: pnpm scanner:test
+
+      - name: Build scanner
+        run: pnpm scanner:build
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA_EMAIL }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build and push scanner image
+        run: |
+          IMAGE_URI="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/bybit-market-scanner:${GITHUB_SHA}"
+          gcloud builds submit . \
+            --project="${GCP_PROJECT_ID}" \
+            --tag="${IMAGE_URI}" \
+            --file="apps/bybit-market-scanner/Dockerfile"
+          echo "IMAGE_URI=${IMAGE_URI}" >> "$GITHUB_ENV"
+
+      - name: Deploy scanner to Cloud Run
+        run: |
+          gcloud run deploy "${SCANNER_RUN_SERVICE}" \
+            --project="${GCP_PROJECT_ID}" \
+            --region="${GCP_REGION}" \
+            --image="${IMAGE_URI}" \
+            --allow-unauthenticated \
+            --port=3000 \
+            --set-env-vars=NODE_ENV=production
