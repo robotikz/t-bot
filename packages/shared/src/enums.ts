@@ -24,3 +24,20 @@ export enum ExchangeName {
   BYBIT = 'BYBIT',
   OKX = 'OKX',
 }
+
+export enum ScannerTimeframeEnum {
+  M15 = '15m',
+  H1 = '1h',
+}
+
+export enum CandidateStatusEnum {
+  CANDIDATE = 'CANDIDATE',
+  WATCH = 'WATCH',
+  REJECTED = 'REJECTED',
+}
+
+export enum TrendDirectionEnum {
+  UP = 'UP',
+  DOWN = 'DOWN',
+  SIDEWAYS = 'SIDEWAYS',
+}
