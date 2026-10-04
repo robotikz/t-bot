@@ -1,0 +1,148 @@
+<section class="scanner-page">
+  <header class="header">
+    <h1>Bybit USDC Market Scanner</h1>
+    <p>Primary: 1H</p>
+    <p>Confirmation: 15M</p>
+  </header>
+
+  <form class="filters" [formGroup]="form" (ngSubmit)="scan()">
+    <label>
+      <span>Primary</span>
+      <select formControlName="timeframe">
+        <option value="1h">1H</option>
+        <option value="15m">15M</option>
+      </select>
+    </label>
+
+    <label>
+      <span>Confirmation</span>
+      <select formControlName="secondaryTimeframe">
+        <option value="15m">15M</option>
+        <option value="1h">1H</option>
+      </select>
+    </label>
+
+    <label>
+      <span>Limit</span>
+      <input type="number" min="1" max="100" formControlName="limit" />
+    </label>
+
+    <label>
+      <span>Min turnover</span>
+      <input type="number" min="0" formControlName="minTurnover" />
+    </label>
+
+    <button type="submit" class="scan-button" [disabled]="isLoading || form.invalid">
+      {{ state === 'error' ? 'Retry / Scan' : 'Scan Market' }}
+    </button>
+  </form>
+
+  @if (state === 'loading') {
+    <p class="loading">Scanning Bybit market...</p>
+  }
+
+  @if (state === 'error') {
+    <p class="error">{{ errorMessage }}</p>
+  }
+
+  @if (state === 'empty') {
+    <p class="empty">No suitable candidates found.</p>
+  }
+
+  @if (candidates.length > 0) {
+    <section class="table-section">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Symbol</th>
+            <th>Price</th>
+            <th>24h %</th>
+            <th>24h Turnover</th>
+            <th>1H Range</th>
+            <th>1H Trend</th>
+            <th>15M Trend</th>
+            <th>Position</th>
+            <th>Score</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (candidate of candidates; track candidate.symbol; let index = $index) {
+            <tr (click)="selectCandidate(candidate)" [class.active]="selectedCandidate?.symbol === candidate.symbol">
+              <td>{{ index + 1 }}</td>
+              <td>{{ candidate.symbol }}</td>
+              <td>{{ candidate.market.lastPrice | number: '1.2-4' }}</td>
+              <td [class.positive]="candidate.market.change24hPercent >= 0" [class.negative]="candidate.market.change24hPercent < 0">
+                {{ candidate.market.change24hPercent >= 0 ? '+' : '' }}{{ candidate.market.change24hPercent | number: '1.1-2' }}%
+              </td>
+              <td>{{ candidate.market.turnover24h | number: '1.0-0' }}</td>
+              <td>{{ candidate.analysis1h?.rangePercent | number: '1.1-2' }}%</td>
+              <td>{{ candidate.analysis1h?.trendDirection ?? 'N/A' }}</td>
+              <td>{{ candidate.analysis15m?.trendDirection ?? 'N/A' }}</td>
+              <td>{{ candidate.analysis1h?.positionInRangePercent | number: '1.0-0' }}%</td>
+              <td>{{ candidate.score | number: '1.2-2' }}</td>
+              <td><span class="status" [ngClass]="statusClass(candidate.status)">{{ candidate.status }}</span></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+  }
+
+  @if (selectedCandidate; as candidate) {
+    <section class="details">
+      <h2>SYMBOL: {{ candidate.symbol }}</h2>
+
+      <div class="detail-grid">
+        <div>
+          <p>Price: {{ candidate.market.lastPrice | number: '1.2-4' }}</p>
+          <p>24h Change: {{ candidate.market.change24hPercent >= 0 ? '+' : '' }}{{ candidate.market.change24hPercent | number: '1.1-2' }}%</p>
+          <p>24h Turnover: {{ candidate.market.turnover24h | number: '1.0-0' }}</p>
+        </div>
+
+        <div>
+          <h3>1H</h3>
+          <p>Support: {{ candidate.analysis1h?.support | number: '1.2-4' }}</p>
+          <p>Resistance: {{ candidate.analysis1h?.resistance | number: '1.2-4' }}</p>
+          <p>Range: {{ candidate.analysis1h?.rangePercent | number: '1.1-2' }}%</p>
+          <p>Position: {{ candidate.analysis1h?.positionInRangePercent | number: '1.0-0' }}%</p>
+          <p>Volatility: {{ candidate.analysis1h?.volatilityPercent | number: '1.1-2' }}%</p>
+          <p>Trend: {{ candidate.analysis1h?.trendDirection ?? 'N/A' }}</p>
+          <p>Score: {{ candidate.analysis1h?.gridScore | number: '1.2-2' }}</p>
+        </div>
+
+        <div>
+          <h3>15M</h3>
+          <p>Support: {{ candidate.analysis15m?.support | number: '1.2-4' }}</p>
+          <p>Resistance: {{ candidate.analysis15m?.resistance | number: '1.2-4' }}</p>
+          <p>Range: {{ candidate.analysis15m?.rangePercent | number: '1.1-2' }}%</p>
+          <p>Position: {{ candidate.analysis15m?.positionInRangePercent | number: '1.0-0' }}%</p>
+          <p>Volatility: {{ candidate.analysis15m?.volatilityPercent | number: '1.1-2' }}%</p>
+          <p>Trend: {{ candidate.analysis15m?.trendDirection ?? 'N/A' }}</p>
+          <p>Score: {{ candidate.analysis15m?.gridScore | number: '1.2-2' }}</p>
+        </div>
+
+        <div>
+          <h3>Status: {{ candidate.status }}</h3>
+          <p>Score: {{ candidate.score | number: '1.2-2' }}</p>
+          <p>Reasons:</p>
+          <ul>
+            @for (reason of candidate.reasons; track $index) {
+              <li>{{ reason }}</li>
+            }
+          </ul>
+
+          @if (candidate.rejectionReasons.length > 0) {
+            <p>Rejection reasons:</p>
+            <ul>
+              @for (reason of candidate.rejectionReasons; track $index) {
+                <li>{{ reason }}</li>
+              }
+            </ul>
+          }
+        </div>
+      </div>
+    </section>
+  }
+</section>

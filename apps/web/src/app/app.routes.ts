@@ -1,11 +1,9 @@
 import { Routes } from '@angular/router';
-import { DashboardComponent } from './dashboard/dashboard.component';
-import { SettingsComponent } from './settings/settings.component';
-import { TradingComponent } from './trading/trading.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'trading', pathMatch: 'full' },
-  { path: 'trading', component: TradingComponent },
-  { path: 'dashboard', component: DashboardComponent },
-  { path: 'settings', component: SettingsComponent },
+  { path: 'trading', loadComponent: () => import('./trading/trading.component').then((module) => module.TradingComponent) },
+  { path: 'scanner', loadComponent: () => import('./scanner/scanner.component').then((module) => module.ScannerComponent) },
+  { path: 'dashboard', loadComponent: () => import('./dashboard/dashboard.component').then((module) => module.DashboardComponent) },
+  { path: 'settings', loadComponent: () => import('./settings/settings.component').then((module) => module.SettingsComponent) },
 ];
