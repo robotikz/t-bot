@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ScannerCandidate, ScannerService } from './scanner.service';
 
@@ -15,7 +15,6 @@ type ViewState = 'initial' | 'loading' | 'success' | 'empty' | 'error';
 export class ScannerComponent {
   private readonly scannerService = inject(ScannerService);
   private readonly fb = inject(FormBuilder);
-  private readonly cdr = inject(ChangeDetectorRef);
 
   readonly form = this.fb.nonNullable.group({
     timeframe: this.fb.nonNullable.control<'1h' | '15m'>('1h'),
@@ -57,7 +56,6 @@ export class ScannerComponent {
         this.selectedCandidate = candidates[0] ?? null;
         this.state = candidates.length > 0 ? 'success' : 'empty';
         this.isLoading = false;
-        this.cdr.detectChanges();
       },
       error: () => {
         this.candidates = [];
@@ -65,7 +63,6 @@ export class ScannerComponent {
         this.state = 'error';
         this.errorMessage = 'Unable to load market data. Try again.';
         this.isLoading = false;
-        this.cdr.detectChanges();
       },
     });
   }
