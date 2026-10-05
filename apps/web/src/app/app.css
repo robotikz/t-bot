@@ -17,6 +17,20 @@
   gap: 0.5rem;
 }
 
+.nav button {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.nav button.active-tab {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-weight: 700;
+}
+
+.nav button.active-tab:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
 .page-shell {
   max-width: 1400px;
   margin: 2rem auto;

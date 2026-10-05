@@ -65,16 +65,28 @@ export interface ScanResult {
   candidates: ScannerCandidate[];
 }
 
+export interface QuoteCoinsResult {
+  count: number;
+  data: string[];
+}
+
 export interface ScannerQuery {
   timeframe?: ScannerTimeframe;
   secondaryTimeframe?: ScannerTimeframe;
   limit?: number;
   minTurnover?: number;
+  quoteCoin?: string;
 }
 
 @Injectable({ providedIn: 'root' })
 export class ScannerService {
   constructor(private readonly http: HttpClient) {}
+
+  getQuoteCoins(): Observable<string[]> {
+    return this.http
+      .get<ApiEnvelope<QuoteCoinsResult>>(`${API_BASE_URL}/markets/quote-coins`)
+      .pipe(map((response) => response.data.data));
+  }
 
   scan(query: ScannerQuery = {}): Observable<ScanResult> {
     let params = new HttpParams();
@@ -82,6 +94,7 @@ export class ScannerService {
     params = params.set('timeframe', query.timeframe ?? '1h');
     params = params.set('secondaryTimeframe', query.secondaryTimeframe ?? '15m');
     params = params.set('limit', String(query.limit ?? 10));
+    params = params.set('quoteCoin', (query.quoteCoin ?? 'USDC').toUpperCase());
 
     if (query.minTurnover !== undefined && query.minTurnover !== null) {
       params = params.set('minTurnover', String(query.minTurnover));

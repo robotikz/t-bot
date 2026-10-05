@@ -30,6 +30,18 @@ export class MarketService {
       );
   }
 
+  async getAvailableQuoteCoins(): Promise<string[]> {
+    const instruments = await this.bybitClient.getSpotInstruments();
+
+    return [...new Set(
+      instruments
+        .map(mapBybitInstrument)
+        .filter((item) => item.status === 'Trading')
+        .map((item) => item.quoteCoin.trim().toUpperCase())
+        .filter((quoteCoin) => quoteCoin.length > 0)
+    )].sort((left, right) => left.localeCompare(right));
+  }
+
   async getTickers(): Promise<MarketTicker[]> {
     const tickers = await this.bybitClient.getSpotTickers();
     const now = Date.now();

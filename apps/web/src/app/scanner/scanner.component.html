@@ -1,11 +1,32 @@
 <section class="scanner-page">
   <header class="header">
-    <h1>Bybit USDC Market Scanner</h1>
+    <h1>Bybit Market Scanner</h1>
     <p>Primary: 1H</p>
     <p>Confirmation: 15M</p>
   </header>
 
   <form class="filters" [formGroup]="form" (ngSubmit)="scan()">
+    <div class="quote-coin-field">
+      <span>Quote coin</span>
+      <div class="quote-coin-group" role="group" aria-label="Quote coin">
+        @for (quoteCoin of quoteCoins; track quoteCoin) {
+          <button
+            type="button"
+            class="quote-coin-chip"
+            [class.selected]="form.controls.quoteCoin.value === quoteCoin"
+            (click)="selectQuoteCoin(quoteCoin)"
+          >
+            {{ quoteCoin }}
+          </button>
+        }
+      </div>
+      <select class="quote-coin-select" formControlName="quoteCoin" aria-hidden="true" tabindex="-1">
+        @for (quoteCoin of quoteCoins; track quoteCoin) {
+          <option [value]="quoteCoin">{{ quoteCoin }}</option>
+        }
+      </select>
+    </div>
+
     <label>
       <span>Primary</span>
       <select formControlName="timeframe">

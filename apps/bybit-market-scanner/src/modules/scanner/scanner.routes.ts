@@ -12,11 +12,17 @@ function parseTimeframe(input: string | undefined, fallback: Timeframe): Timefra
 export function registerScannerRoutes(app: FastifyInstance, scannerService: ScannerService): void {
   app.get('/api/scanner', async (request) => {
     const query = request.query as {
+      quoteCoin?: string;
       timeframe?: string;
       secondaryTimeframe?: string;
       limit?: string;
       minTurnover?: string;
     };
+
+    const quoteCoin = (query.quoteCoin ?? 'USDC').trim().toUpperCase();
+    if (!quoteCoin) {
+      throw new ValidationError('INVALID_QUOTE_COIN', 'quoteCoin must be a non-empty string');
+    }
 
     const timeframe = parseTimeframe(query.timeframe, '1h');
     const secondaryTimeframe = parseTimeframe(query.secondaryTimeframe, '15m');
@@ -32,8 +38,9 @@ export function registerScannerRoutes(app: FastifyInstance, scannerService: Scan
     }
 
     const scanOptions: NonNullable<Parameters<ScannerService['scan']>[0]> = {
+      quoteCoin,
       timeframe,
-      secondaryTimeframe
+      secondaryTimeframe,
     };
     if (limit !== undefined) {
       scanOptions.limit = limit;

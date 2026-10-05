@@ -10,10 +10,10 @@
 <mat-toolbar color="primary">
   <span>Trading Platform</span>
   <nav class="nav" aria-label="Main navigation">
-    <button mat-button routerLink="/trading">Trading</button>
-    <button mat-button routerLink="/scanner">Scanner</button>
-    <button mat-button routerLink="/dashboard">Dashboard</button>
-    <button mat-button routerLink="/settings">Settings</button>
+    <button mat-button routerLink="/scanner" routerLinkActive="active-tab" [routerLinkActiveOptions]="{ exact: true }">Scanner</button>
+    <button mat-button routerLink="/trading" routerLinkActive="active-tab" [routerLinkActiveOptions]="{ exact: true }">Trading</button>
+    <button mat-button routerLink="/dashboard" routerLinkActive="active-tab" [routerLinkActiveOptions]="{ exact: true }">Dashboard</button>
+    <button mat-button routerLink="/settings" routerLinkActive="active-tab" [routerLinkActiveOptions]="{ exact: true }">Settings</button>
   </nav>
 </mat-toolbar>
 

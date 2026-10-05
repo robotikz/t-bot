@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ScannerCandidate, ScannerService } from './scanner.service';
 
@@ -12,12 +12,15 @@ type ViewState = 'initial' | 'loading' | 'success' | 'empty' | 'error';
   templateUrl: './scanner.component.html',
   styleUrl: './scanner.component.scss',
 })
-export class ScannerComponent {
+export class ScannerComponent implements OnInit {
   private readonly scannerService = inject(ScannerService);
   private readonly fb = inject(FormBuilder);
   private readonly cdr = inject(ChangeDetectorRef);
 
+  quoteCoins: string[] = [];
+
   readonly form = this.fb.nonNullable.group({
+    quoteCoin: this.fb.nonNullable.control<(typeof this.quoteCoins)[number]>('USDC'),
     timeframe: this.fb.nonNullable.control<'1h' | '15m'>('1h'),
     secondaryTimeframe: this.fb.nonNullable.control<'1h' | '15m'>('15m'),
     limit: this.fb.nonNullable.control<number>(100, [Validators.min(1), Validators.max(100)]),
@@ -29,6 +32,31 @@ export class ScannerComponent {
   errorMessage = '';
   candidates: ScannerCandidate[] = [];
   selectedCandidate: ScannerCandidate | null = null;
+
+  ngOnInit(): void {
+    this.scannerService.getQuoteCoins().subscribe({
+      next: (quoteCoins) => {
+        const normalized = quoteCoins.length > 0 ? quoteCoins : ['USDC'];
+        this.quoteCoins = normalized;
+
+        const currentQuoteCoin = this.form.controls.quoteCoin.value;
+        if (!normalized.includes(currentQuoteCoin)) {
+          this.form.controls.quoteCoin.setValue(normalized[0]);
+        }
+
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.quoteCoins = ['USDC'];
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  selectQuoteCoin(quoteCoin: string): void {
+    this.form.controls.quoteCoin.setValue(quoteCoin);
+    this.cdr.detectChanges();
+  }
 
   scan(): void {
     if (this.isLoading) {
@@ -43,6 +71,7 @@ export class ScannerComponent {
 
     const rawValue = this.form.getRawValue();
     const query = {
+      quoteCoin: rawValue.quoteCoin,
       timeframe: rawValue.timeframe,
       secondaryTimeframe: rawValue.secondaryTimeframe,
       limit: rawValue.limit,
@@ -58,7 +87,7 @@ export class ScannerComponent {
         this.state = candidates.length > 0 ? 'success' : 'empty';
         this.isLoading = false;
 
-        this.cdr.markForCheck();
+        this.cdr.detectChanges();
       },
       error: () => {
         this.candidates = [];
@@ -66,14 +95,14 @@ export class ScannerComponent {
         this.state = 'error';
         this.errorMessage = 'Unable to load market data. Try again.';
         this.isLoading = false;
-        this.cdr.markForCheck();
+        this.cdr.detectChanges();
       },
     });
   }
 
   selectCandidate(candidate: ScannerCandidate): void {
     this.selectedCandidate = candidate;
-    this.cdr.markForCheck();
+    this.cdr.detectChanges();
   }
 
   isSelected(candidate: ScannerCandidate): boolean {

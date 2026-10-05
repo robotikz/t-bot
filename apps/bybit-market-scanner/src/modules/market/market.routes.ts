@@ -10,6 +10,11 @@ function parseTimeframe(input: string | undefined): Timeframe {
 }
 
 export function registerMarketRoutes(app: FastifyInstance, marketService: MarketService): void {
+  app.get('/api/markets/quote-coins', async () => {
+    const data = await marketService.getAvailableQuoteCoins();
+    return { count: data.length, data };
+  });
+
   app.get('/api/markets', async (request) => {
     const query = request.query as { quoteCoin?: string };
     const quoteCoin = (query.quoteCoin ?? 'USDC').trim().toUpperCase();

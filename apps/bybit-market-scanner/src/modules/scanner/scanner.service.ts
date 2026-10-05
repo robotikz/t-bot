@@ -27,18 +27,20 @@ export class ScannerService {
   ) {}
 
   async scan(options?: {
+    quoteCoin?: string;
     timeframe?: Timeframe;
     secondaryTimeframe?: Timeframe;
     limit?: number;
     minTurnover?: number;
   }): Promise<ScanResult> {
+    const quoteCoin = (options?.quoteCoin ?? 'USDC').trim().toUpperCase();
     const primaryTimeframe = options?.timeframe ?? '1h';
     const secondaryTimeframe = options?.secondaryTimeframe ?? '15m';
     const topLimit = Math.max(1, Math.floor(options?.limit ?? this.config.topCandidates));
     const minTurnover = options?.minTurnover ?? this.config.minTurnover24hUsdc;
 
     const [markets, tickers] = await Promise.all([
-      this.marketService.getUSDCMarkets(),
+      this.marketService.getMarketsByQuoteCoin(quoteCoin),
       this.marketService.getTickers()
     ]);
 
