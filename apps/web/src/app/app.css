@@ -36,3 +36,48 @@
   margin: 2rem auto;
   padding: 0 1rem 2rem;
 }
+
+@media (max-width: 720px) {
+  .mat-toolbar {
+    padding: 0.5rem 0.75rem;
+    align-items: flex-start;
+  }
+
+  .mat-toolbar span {
+    font-size: 1rem;
+    white-space: nowrap;
+  }
+
+  .nav {
+    margin-left: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.35rem;
+  }
+
+  .nav button {
+    min-width: 0;
+    padding: 0 0.75rem;
+  }
+
+  .page-shell {
+    margin: 1rem auto;
+    padding: 0 0.75rem 1.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .mat-toolbar {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .nav {
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+
+  .nav button {
+    flex: 1 1 calc(50% - 0.25rem);
+  }
+}

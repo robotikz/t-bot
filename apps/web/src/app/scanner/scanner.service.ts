@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { map, Observable } from 'rxjs';
+import { map, Observable, tap } from 'rxjs';
 
 const API_BASE_URL = '/api';
 
@@ -84,8 +84,19 @@ export class ScannerService {
 
   getQuoteCoins(): Observable<string[]> {
     return this.http
-      .get<ApiEnvelope<QuoteCoinsResult>>(`${API_BASE_URL}/markets/quote-coins`)
-      .pipe(map((response) => response.data.data));
+      .get<QuoteCoinsResult | ApiEnvelope<QuoteCoinsResult>>(`${API_BASE_URL}/markets/quote-coins`)
+      .pipe(
+        tap((response) => console.log('[scanner-service] quoteCoins response', response)),
+        map((response) => {
+          if (Array.isArray((response as QuoteCoinsResult)?.data)) {
+            return (response as QuoteCoinsResult).data;
+          }
+
+          const nestedData = (response as ApiEnvelope<QuoteCoinsResult>)?.data?.data;
+          return Array.isArray(nestedData) ? nestedData : [];
+        }),
+        tap((quoteCoins) => console.log('[scanner-service] quoteCoins data', quoteCoins)),
+      );
   }
 
   scan(query: ScannerQuery = {}): Observable<ScanResult> {

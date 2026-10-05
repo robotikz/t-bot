@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { catchError, map, Observable, of, startWith, tap } from 'rxjs';
 import { ScannerCandidate, ScannerService } from './scanner.service';
 
 type ViewState = 'initial' | 'loading' | 'success' | 'empty' | 'error';
@@ -12,15 +13,16 @@ type ViewState = 'initial' | 'loading' | 'success' | 'empty' | 'error';
   templateUrl: './scanner.component.html',
   styleUrl: './scanner.component.scss',
 })
-export class ScannerComponent implements OnInit {
+export class ScannerComponent {
   private readonly scannerService = inject(ScannerService);
   private readonly fb = inject(FormBuilder);
   private readonly cdr = inject(ChangeDetectorRef);
 
-  quoteCoins: string[] = [];
+  quoteCoins: string[] = ['USDC'];
+  isFiltersExpanded = false;
 
   readonly form = this.fb.nonNullable.group({
-    quoteCoin: this.fb.nonNullable.control<(typeof this.quoteCoins)[number]>('USDC'),
+    quoteCoin: this.fb.nonNullable.control<string>('USDC'),
     timeframe: this.fb.nonNullable.control<'1h' | '15m'>('1h'),
     secondaryTimeframe: this.fb.nonNullable.control<'1h' | '15m'>('15m'),
     limit: this.fb.nonNullable.control<number>(100, [Validators.min(1), Validators.max(100)]),
@@ -33,28 +35,33 @@ export class ScannerComponent implements OnInit {
   candidates: ScannerCandidate[] = [];
   selectedCandidate: ScannerCandidate | null = null;
 
-  ngOnInit(): void {
-    this.scannerService.getQuoteCoins().subscribe({
-      next: (quoteCoins) => {
-        const normalized = quoteCoins.length > 0 ? quoteCoins : ['USDC'];
-        this.quoteCoins = normalized;
+  constructor() {
+    this.scannerService.getQuoteCoins().pipe(
+      tap((quoteCoins) => console.log('[scanner] quoteCoins raw', quoteCoins)),
+      map((quoteCoins) => (quoteCoins.length > 0 ? quoteCoins : ['USDC'])),
+      tap((quoteCoins) => console.log('[scanner] quoteCoins normalized', quoteCoins)),
+      catchError((error) => {
+        console.error('[scanner] quoteCoins failed', error);
+        return of(['USDC']);
+      }),
+    ).subscribe((quoteCoins) => {
+      this.quoteCoins = quoteCoins;
 
-        const currentQuoteCoin = this.form.controls.quoteCoin.value;
-        if (!normalized.includes(currentQuoteCoin)) {
-          this.form.controls.quoteCoin.setValue(normalized[0]);
-        }
+      if (!quoteCoins.includes(this.form.controls.quoteCoin.value)) {
+        this.form.controls.quoteCoin.setValue(quoteCoins[0] ?? 'USDC');
+      }
 
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        this.quoteCoins = ['USDC'];
-        this.cdr.detectChanges();
-      },
+      this.cdr.detectChanges();
     });
   }
 
   selectQuoteCoin(quoteCoin: string): void {
     this.form.controls.quoteCoin.setValue(quoteCoin);
+    this.cdr.detectChanges();
+  }
+
+  toggleFilters(): void {
+    this.isFiltersExpanded = !this.isFiltersExpanded;
     this.cdr.detectChanges();
   }
 

@@ -5,58 +5,66 @@
     <p>Confirmation: 15M</p>
   </header>
 
-  <form class="filters" [formGroup]="form" (ngSubmit)="scan()">
-    <div class="quote-coin-field">
-      <span>Quote coin</span>
-      <div class="quote-coin-group" role="group" aria-label="Quote coin">
-        @for (quoteCoin of quoteCoins; track quoteCoin) {
-          <button
-            type="button"
-            class="quote-coin-chip"
-            [class.selected]="form.controls.quoteCoin.value === quoteCoin"
-            (click)="selectQuoteCoin(quoteCoin)"
-          >
-            {{ quoteCoin }}
-          </button>
-        }
-      </div>
-      <select class="quote-coin-select" formControlName="quoteCoin" aria-hidden="true" tabindex="-1">
-        @for (quoteCoin of quoteCoins; track quoteCoin) {
-          <option [value]="quoteCoin">{{ quoteCoin }}</option>
-        }
-      </select>
+  <section class="filters-panel" [class.collapsed]="!isFiltersExpanded">
+    <div class="filters-panel-header">
+      <button type="button" class="filters-toggle" (click)="toggleFilters()">
+        {{ isFiltersExpanded ? 'Hide filters' : 'Show filters' }}
+      </button>
+      <span class="filters-summary">Quote coin: {{ form.controls.quoteCoin.value }}</span>
     </div>
 
-    <label>
-      <span>Primary</span>
-      <select formControlName="timeframe">
-        <option value="1h">1H</option>
-        <option value="15m">15M</option>
-      </select>
-    </label>
+    @if (isFiltersExpanded) {
+      <form id="scanner-filters" class="filters" [formGroup]="form" (ngSubmit)="scan()">
+        <div class="quote-coin-field">
+          <span>Quote coin</span>
+          <div class="quote-coin-group" role="group" aria-label="Quote coin">
+            @for (quoteCoin of quoteCoins; track quoteCoin) {
+              <button
+                type="button"
+                class="quote-coin-chip"
+                [class.selected]="form.controls.quoteCoin.value === quoteCoin"
+                (click)="selectQuoteCoin(quoteCoin)"
+              >
+                {{ quoteCoin }}
+              </button>
+            }
+          </div>
+          <p class="quote-coin-hint">Loaded {{ quoteCoins.length }} Bybit quote coins.</p>
+        </div>
 
-    <label>
-      <span>Confirmation</span>
-      <select formControlName="secondaryTimeframe">
-        <option value="15m">15M</option>
-        <option value="1h">1H</option>
-      </select>
-    </label>
+        <label>
+          <span>Primary</span>
+          <select formControlName="timeframe">
+            <option value="1h">1H</option>
+            <option value="15m">15M</option>
+          </select>
+        </label>
 
-    <label>
-      <span>Limit</span>
-      <input type="number" min="1" max="100" formControlName="limit" />
-    </label>
+        <label>
+          <span>Confirmation</span>
+          <select formControlName="secondaryTimeframe">
+            <option value="15m">15M</option>
+            <option value="1h">1H</option>
+          </select>
+        </label>
 
-    <label>
-      <span>Min turnover</span>
-      <input type="number" min="0" formControlName="minTurnover" />
-    </label>
+        <label>
+          <span>Limit</span>
+          <input type="number" min="1" max="100" formControlName="limit" />
+        </label>
 
-    <button type="submit" class="scan-button" [disabled]="isLoading || form.invalid">
+        <label>
+          <span>Min turnover</span>
+          <input type="number" min="0" formControlName="minTurnover" />
+        </label>
+
+      </form>
+    }
+
+    <button type="button" class="scan-button scan-button-outside" (click)="scan()" [disabled]="isLoading || form.invalid">
       {{ state === 'error' ? 'Retry / Scan' : 'Scan Market' }}
     </button>
-  </form>
+  </section>
 
   @if (state === 'loading') {
     <p class="loading">Scanning Bybit market...</p>
@@ -76,6 +84,7 @@
         <thead>
           <tr>
             <th>#</th>
+            <th>Status</th>
             <th>Symbol</th>
             <th>Price</th>
             <th>24h %</th>
@@ -85,7 +94,6 @@
             <th>15M Trend</th>
             <th>Position</th>
             <th>Score</th>
-            <th>Status</th>
           </tr>
         </thead>
         <tbody>
@@ -96,6 +104,7 @@
               [class.active]="selectedCandidate?.symbol === candidate.symbol"
             >
               <td>{{ index + 1 }}</td>
+              <td><span class="status" [ngClass]="statusClass(candidate.status)">{{ candidate.status }}</span></td>
               <td>{{ candidate.symbol }}</td>
               <td>{{ candidate.market.lastPrice | number: '1.2-4' }}</td>
               <td [class.positive]="candidate.market.change24hPercent >= 0" [class.negative]="candidate.market.change24hPercent < 0">
@@ -107,7 +116,6 @@
               <td>{{ candidate.analysis15m?.trendDirection ?? 'N/A' }}</td>
               <td>{{ candidate.analysis1h?.positionInRangePercent | number: '1.0-0' }}%</td>
               <td>{{ candidate.score | number: '1.2-2' }}</td>
-              <td><span class="status" [ngClass]="statusClass(candidate.status)">{{ candidate.status }}</span></td>
             </tr>
           }
         </tbody>
