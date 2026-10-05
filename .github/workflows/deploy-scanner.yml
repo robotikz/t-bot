@@ -60,10 +60,9 @@ jobs:
       - name: Build and push scanner image
         run: |
           IMAGE_URI="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/bybit-market-scanner:${GITHUB_SHA}"
-          gcloud builds submit . \
+          gcloud builds submit apps/bybit-market-scanner \
             --project="${GCP_PROJECT_ID}" \
-            --tag="${IMAGE_URI}" \
-            --file="apps/bybit-market-scanner/Dockerfile"
+            --tag="${IMAGE_URI}"
           echo "IMAGE_URI=${IMAGE_URI}" >> "$GITHUB_ENV"
 
       - name: Deploy scanner to Cloud Run
