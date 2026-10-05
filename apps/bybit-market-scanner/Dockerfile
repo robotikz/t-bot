@@ -22,6 +22,7 @@ ENV NODE_ENV=production
 ENV PORT=3000
 
 COPY --from=build /opt/scanner ./
+COPY --from=build /workspace/apps/bybit-market-scanner/dist ./dist
 
 EXPOSE 3000
 
