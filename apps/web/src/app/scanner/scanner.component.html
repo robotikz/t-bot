@@ -69,7 +69,11 @@
         </thead>
         <tbody>
           @for (candidate of candidates; track candidate.symbol; let index = $index) {
-            <tr (click)="selectCandidate(candidate)" [class.active]="selectedCandidate?.symbol === candidate.symbol">
+            <tr
+              (click)="selectCandidate(candidate)"
+              [class.selected]="isSelected(candidate)"
+              [class.active]="selectedCandidate?.symbol === candidate.symbol"
+            >
               <td>{{ index + 1 }}</td>
               <td>{{ candidate.symbol }}</td>
               <td>{{ candidate.market.lastPrice | number: '1.2-4' }}</td>
@@ -92,16 +96,30 @@
 
   @if (selectedCandidate; as candidate) {
     <section class="details">
-      <h2>SYMBOL: {{ candidate.symbol }}</h2>
+      <div class="details-header">
+        <div class="title-block">
+          <span class="eyebrow">Selected coin</span>
+          <h2>{{ candidate.symbol }}</h2>
+        </div>
+
+        <button type="button" class="copy-button" (click)="copyAnalysis()">Copy for Analysis</button>
+      </div>
+
+      <div class="analysis-copy">
+        <pre>{{ analysisText }}</pre>
+      </div>
 
       <div class="detail-grid">
-        <div>
+        <div class="summary-card">
+          <h3>Market summary</h3>
           <p>Price: {{ candidate.market.lastPrice | number: '1.2-4' }}</p>
           <p>24h Change: {{ candidate.market.change24hPercent >= 0 ? '+' : '' }}{{ candidate.market.change24hPercent | number: '1.1-2' }}%</p>
           <p>24h Turnover: {{ candidate.market.turnover24h | number: '1.0-0' }}</p>
+          <p>Status: {{ candidate.status }}</p>
+          <p>Overall score: {{ candidate.score | number: '1.2-2' }}</p>
         </div>
 
-        <div>
+        <div class="summary-card">
           <h3>1H</h3>
           <p>Support: {{ candidate.analysis1h?.support | number: '1.2-4' }}</p>
           <p>Resistance: {{ candidate.analysis1h?.resistance | number: '1.2-4' }}</p>
@@ -112,7 +130,7 @@
           <p>Score: {{ candidate.analysis1h?.gridScore | number: '1.2-2' }}</p>
         </div>
 
-        <div>
+        <div class="summary-card">
           <h3>15M</h3>
           <p>Support: {{ candidate.analysis15m?.support | number: '1.2-4' }}</p>
           <p>Resistance: {{ candidate.analysis15m?.resistance | number: '1.2-4' }}</p>
@@ -123,10 +141,8 @@
           <p>Score: {{ candidate.analysis15m?.gridScore | number: '1.2-2' }}</p>
         </div>
 
-        <div>
-          <h3>Status: {{ candidate.status }}</h3>
-          <p>Score: {{ candidate.score | number: '1.2-2' }}</p>
-          <p>Reasons:</p>
+        <div class="summary-card">
+          <h3>Reasons</h3>
           <ul>
             @for (reason of candidate.reasons; track $index) {
               <li>{{ reason }}</li>
@@ -134,7 +150,7 @@
           </ul>
 
           @if (candidate.rejectionReasons.length > 0) {
-            <p>Rejection reasons:</p>
+            <p class="rejections-label">Rejection reasons:</p>
             <ul>
               @for (reason of candidate.rejectionReasons; track $index) {
                 <li>{{ reason }}</li>
