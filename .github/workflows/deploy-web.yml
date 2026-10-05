@@ -18,6 +18,9 @@ permissions:
 
 env:
   GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_RUNTIME_SA_EMAIL: ${{ vars.GCP_RUNTIME_SA_EMAIL }}
+  GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+  GCP_DEPLOY_SA_EMAIL: ${{ vars.GCP_DEPLOY_SA_EMAIL }}
 
 jobs:
   deploy:
@@ -51,6 +54,28 @@ jobs:
 
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
+
+      - name: Validate required variables
+        run: |
+          if [ -z "${GCP_PROJECT_ID}" ]; then
+            echo "GCP_PROJECT_ID is missing"
+            exit 1
+          fi
+
+          if [ -z "${GCP_RUNTIME_SA_EMAIL}" ]; then
+            echo "GCP_RUNTIME_SA_EMAIL is missing"
+            exit 1
+          fi
+
+          if [ -z "${GCP_WIF_PROVIDER}" ]; then
+            echo "GCP_WIF_PROVIDER is missing"
+            exit 1
+          fi
+
+          if [ -z "${GCP_DEPLOY_SA_EMAIL}" ]; then
+            echo "GCP_DEPLOY_SA_EMAIL is missing"
+            exit 1
+          fi
 
       - name: Deploy to Firebase Hosting
         run: |

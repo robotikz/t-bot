@@ -22,6 +22,9 @@ env:
   GCP_REGION: ${{ vars.GCP_REGION }}
   GAR_REPOSITORY: ${{ vars.GAR_REPOSITORY }}
   SCANNER_RUN_SERVICE: ${{ vars.SCANNER_RUN_SERVICE }}
+  RUNTIME_SA_EMAIL: ${{ vars.GCP_RUNTIME_SA_EMAIL }}
+  GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+  GCP_DEPLOY_SA_EMAIL: ${{ vars.GCP_DEPLOY_SA_EMAIL }}
 
 jobs:
   deploy:
@@ -60,6 +63,23 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
 
+      - name: Validate runtime service account
+        run: |
+          if [ -z "${RUNTIME_SA_EMAIL}" ]; then
+            echo "GCP_RUNTIME_SA_EMAIL is missing"
+            exit 1
+          fi
+
+          if [ -z "${GCP_WIF_PROVIDER}" ]; then
+            echo "GCP_WIF_PROVIDER is missing"
+            exit 1
+          fi
+
+          if [ -z "${GCP_DEPLOY_SA_EMAIL}" ]; then
+            echo "GCP_DEPLOY_SA_EMAIL is missing"
+            exit 1
+          fi
+
       - name: Build and push scanner image
         run: |
           IMAGE_URI="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/bybit-market-scanner:${GITHUB_SHA}"
@@ -76,6 +96,7 @@ jobs:
             --project="${GCP_PROJECT_ID}" \
             --region="${GCP_REGION}" \
             --image="${IMAGE_URI}" \
+            --service-account="${RUNTIME_SA_EMAIL}" \
             --allow-unauthenticated \
             --port=3000 \
             --set-env-vars=NODE_ENV=production
