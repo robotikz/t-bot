@@ -57,12 +57,17 @@ jobs:
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+
       - name: Build and push scanner image
         run: |
           IMAGE_URI="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/bybit-market-scanner:${GITHUB_SHA}"
-          gcloud builds submit apps/bybit-market-scanner \
-            --project="${GCP_PROJECT_ID}" \
-            --tag="${IMAGE_URI}"
+          docker build \
+            --file apps/bybit-market-scanner/Dockerfile \
+            --tag="${IMAGE_URI}" \
+            .
+          docker push "${IMAGE_URI}"
           echo "IMAGE_URI=${IMAGE_URI}" >> "$GITHUB_ENV"
 
       - name: Deploy scanner to Cloud Run
