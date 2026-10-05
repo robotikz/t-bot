@@ -47,16 +47,15 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SA_EMAIL }}
-          create_credentials_file: true
+          token_format: access_token
 
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
       - name: Deploy to Firebase Hosting
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
         run: |
           firebase deploy \
             --project "${GCP_PROJECT_ID}" \
+            --token "${{ steps.auth.outputs.access_token }}" \
             --only hosting \
             --non-interactive
