@@ -4,6 +4,11 @@ import type { AnalysisService } from '../analysis/analysis.service.js';
 import type { ScannerCandidate, ScanResult } from './scanner.types.js';
 import type { MarketService } from '../market/market.service.js';
 import type { Timeframe } from '../market/market.types.js';
+import { EntryTimingService } from './domain/entry-timing/entry-timing.service.js';
+
+type LegacyMarketService = {
+  getUSDCMarkets?: () => ReturnType<MarketService['getMarketsByQuoteCoin']>;
+};
 
 function buildPositiveReasons(score: number, rejectionReasons: string[]): string[] {
   const reasons: string[] = [];
@@ -20,11 +25,15 @@ function resolveStatus(score: number, rejectionReasons: string[]): ScannerCandid
 }
 
 export class ScannerService {
+  private readonly entryTimingService: EntryTimingService;
+
   constructor(
     private readonly marketService: MarketService,
     private readonly analysisService: AnalysisService,
     private readonly config: AppConfig
-  ) {}
+  ) {
+    this.entryTimingService = new EntryTimingService(config);
+  }
 
   async scan(options?: {
     quoteCoin?: string;
@@ -39,8 +48,20 @@ export class ScannerService {
     const topLimit = Math.max(1, Math.floor(options?.limit ?? this.config.topCandidates));
     const minTurnover = options?.minTurnover ?? this.config.minTurnover24hUsdc;
 
+    const marketService = this.marketService as MarketService & LegacyMarketService;
+    const marketsPromise =
+      typeof marketService.getMarketsByQuoteCoin === 'function'
+        ? marketService.getMarketsByQuoteCoin(quoteCoin)
+        : quoteCoin === 'USDC' && typeof marketService.getUSDCMarkets === 'function'
+          ? marketService.getUSDCMarkets()
+          : Promise.reject(
+              new Error(
+                'Market service is missing getMarketsByQuoteCoin(quoteCoin) for non-USDC scans'
+              )
+            );
+
     const [markets, tickers] = await Promise.all([
-      this.marketService.getMarketsByQuoteCoin(quoteCoin),
+      marketsPromise,
       this.marketService.getTickers()
     ]);
 
@@ -62,25 +83,43 @@ export class ScannerService {
           throw new Error(`Ticker missing for symbol ${symbol}`);
         }
 
-        const [primaryAnalysis, secondaryAnalysis] = await Promise.all([
+        const [primaryAnalysis, secondaryAnalysis, candles15m] = await Promise.all([
           this.analysisService.analyzeSymbol(symbol, primaryTimeframe),
-          this.analysisService.analyzeSymbol(symbol, secondaryTimeframe)
+          this.analysisService.analyzeSymbol(symbol, secondaryTimeframe),
+          this.marketService.getCandles(symbol, '15m', 80)
         ]);
+
+        const analysisByTimeframe = new Map<Timeframe, typeof primaryAnalysis>([
+          [primaryTimeframe, primaryAnalysis],
+          [secondaryTimeframe, secondaryAnalysis]
+        ]);
+
+        const analysis1h =
+          analysisByTimeframe.get('1h') ?? (await this.analysisService.analyzeSymbol(symbol, '1h'));
+        const analysis15m =
+          analysisByTimeframe.get('15m') ?? (await this.analysisService.analyzeSymbol(symbol, '15m'));
 
         const score = primaryAnalysis.gridScore * 0.7 + secondaryAnalysis.gridScore * 0.3;
         const rejectionReasons = Array.from(
           new Set([...primaryAnalysis.rejectionReasons, ...secondaryAnalysis.rejectionReasons])
         );
 
+        const entryTiming = this.entryTimingService.evaluate({
+          analysis1h,
+          analysis15m,
+          candles15m
+        });
+
         return {
           symbol,
           score,
           status: resolveStatus(score, rejectionReasons),
           market,
-          analysis15m: primaryTimeframe === '15m' ? primaryAnalysis : secondaryAnalysis,
-          analysis1h: primaryTimeframe === '1h' ? primaryAnalysis : secondaryAnalysis,
+          analysis15m,
+          analysis1h,
           reasons: buildPositiveReasons(score, rejectionReasons),
-          rejectionReasons
+          rejectionReasons,
+          ...entryTiming
         } satisfies ScannerCandidate;
       }
     );

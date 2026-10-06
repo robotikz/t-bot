@@ -2,6 +2,13 @@ export type ScannerTimeframe = '15m' | '1h';
 
 export type CandidateStatus = 'CANDIDATE' | 'WATCH' | 'REJECTED';
 
+export type EntryTimingState =
+  | 'READY'
+  | 'WAIT_PULLBACK'
+  | 'WAIT_BREAKOUT_RETEST'
+  | 'WAIT_CONFIRMATION'
+  | 'NO_ENTRY';
+
 export type TrendDirection = 'UP' | 'DOWN' | 'SIDEWAYS';
 
 export interface MarketInstrument {
@@ -66,6 +73,21 @@ export interface ScannerWeights {
   supportResistance: number;
 }
 
+export interface EntryZone {
+  min: number;
+  max: number;
+}
+
+export interface RecommendedEntryZone {
+  supportBasedEntry: EntryZone;
+  breakoutRetestEntry: EntryZone;
+}
+
+export interface RecommendedGridRange {
+  lower: number;
+  upper: number;
+}
+
 export interface ScannerCandidate {
   symbol: string;
   score: number;
@@ -75,6 +97,14 @@ export interface ScannerCandidate {
   analysis1h?: MarketAnalysis;
   reasons: string[];
   rejectionReasons: string[];
+  entryTiming: EntryTimingState;
+  entryScore: number;
+  entryReasons: string[];
+  recommendedEntryZone: RecommendedEntryZone;
+  recommendedGridRange?: RecommendedGridRange;
+  recommendedStopLoss?: number;
+  recommendedTakeProfit?: number;
+  recommendedGrids?: number;
 }
 
 export interface ScanResult {
