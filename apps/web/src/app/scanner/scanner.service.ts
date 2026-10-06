@@ -11,6 +11,7 @@ interface ApiEnvelope<T> {
 export type ScannerTimeframe = '15m' | '1h';
 export type CandidateStatus = 'CANDIDATE' | 'WATCH' | 'REJECTED';
 export type TrendDirection = 'UP' | 'DOWN' | 'SIDEWAYS';
+export type EntryTimingState = 'READY' | 'WAIT_PULLBACK' | 'WAIT_BREAKOUT_RETEST' | 'WAIT_CONFIRMATION' | 'NO_ENTRY';
 
 export interface MarketTicker {
   symbol: string;
@@ -51,6 +52,8 @@ export interface MarketAnalysis {
 export interface ScannerCandidate {
   symbol: string;
   score: number;
+  entryScore?: number;
+  entryTiming?: EntryTimingState;
   status: CandidateStatus;
   market: MarketTicker;
   analysis15m?: MarketAnalysis;

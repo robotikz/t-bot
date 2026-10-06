@@ -93,7 +93,9 @@
             <th>1H Trend</th>
             <th>15M Trend</th>
             <th>Position</th>
-            <th>Score</th>
+            <th>Market Score</th>
+            <th>Entry Score</th>
+            <th>Entry</th>
           </tr>
         </thead>
         <tbody>
@@ -116,6 +118,8 @@
               <td>{{ candidate.analysis15m?.trendDirection ?? 'N/A' }}</td>
               <td>{{ candidate.analysis1h?.positionInRangePercent | number: '1.0-0' }}%</td>
               <td>{{ candidate.score | number: '1.2-2' }}</td>
+              <td>{{ candidateEntryScore(candidate) | number: '1.0-0' }}</td>
+              <td><span class="status" [ngClass]="executionStatusClass(candidateEntryTiming(candidate))">{{ candidateEntryTiming(candidate) }}</span></td>
             </tr>
           }
         </tbody>
@@ -172,6 +176,20 @@
                 Execution:
                 <span class="status" [ngClass]="executionStatusClass(execution.status)">{{ execution.status }}</span>
               </p>
+
+              <p>
+                Market Suitability:
+                <strong [class.ok-yes]="execution.marketSuitableForGrid" [class.ok-no]="!execution.marketSuitableForGrid">
+                  {{ execution.marketSuitableForGrid ? 'GOOD FOR GRID' : 'WEAK / HIGH RISK' }}
+                </strong>
+              </p>
+              <p>Market Suitability Reason: {{ execution.marketSuitabilityReason }}</p>
+
+              <p>
+                Entry Timing:
+                <span class="status" [ngClass]="executionStatusClass(execution.entryTiming)">{{ execution.entryTiming }}</span>
+              </p>
+              <p>Entry Score: {{ execution.entryScore | number: '1.0-0' }}</p>
 
               <p>
                 Execution Decision:
@@ -268,7 +286,9 @@
           <p>24h Change: {{ candidate.market.change24hPercent >= 0 ? '+' : '' }}{{ candidate.market.change24hPercent | number: '1.1-2' }}%</p>
           <p>24h Turnover: {{ candidate.market.turnover24h | number: '1.0-0' }}</p>
           <p>Status: {{ candidate.status }}</p>
-          <p>Overall score: {{ candidate.score | number: '1.2-2' }}</p>
+          <p>Market score: {{ candidate.score | number: '1.2-2' }}</p>
+          <p>Entry score: {{ candidateEntryScore(candidate) | number: '1.0-0' }}</p>
+          <p>Entry timing: {{ candidateEntryTiming(candidate) }}</p>
         </div>
 
         <div class="summary-card">

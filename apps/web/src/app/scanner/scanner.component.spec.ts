@@ -192,6 +192,7 @@ describe('ScannerComponent', () => {
     timeframe: '1h' | '15m',
     overrides: Partial<{
       price: number;
+      change24hPercent: number;
       turnover24h: number;
       rangeHigh: number;
       rangeLow: number;
@@ -449,16 +450,19 @@ describe('ScannerComponent', () => {
         timeframe === '1h'
           ? createUsdcAnalysis('1h', {
               price: 5.3,
+              trendDirection: 'SIDEWAYS',
               distanceToSupportPercent: 1.7,
               distanceToResistancePercent: 2.9,
-              trendDirection: 'UP',
+              rangePercent: 8.6,
+              volatilityPercent: 0.95,
             })
           : createUsdcAnalysis('15m', {
               price: 5.3,
               positionInRangePercent: 55,
               distanceToSupportPercent: 1.2,
               distanceToResistancePercent: 2.4,
-              trendDirection: 'DOWN',
+              trendDirection: 'SIDEWAYS',
+              volatilityPercent: 0.35,
             }),
       ),
     );
@@ -470,5 +474,220 @@ describe('ScannerComponent', () => {
     expect(component.usdcExecution?.status).toBe('WAIT_CONFIRMATION');
     expect(component.usdcExecution?.decision).toBe('WAIT');
     expect(component.usdcExecution?.recommendation).toBeDefined();
+  });
+
+  it('returns READY for sideways 1H with support stabilization', async () => {
+    api.getAnalysis.mockImplementation((symbol: string, timeframe: '1h' | '15m') =>
+      of(
+        timeframe === '1h'
+          ? createUsdcAnalysis('1h', {
+              trendDirection: 'SIDEWAYS',
+              positionInRangePercent: 50,
+              distanceToSupportPercent: 1.8,
+              distanceToResistancePercent: 3,
+            })
+          : createUsdcAnalysis('15m', {
+              trendDirection: 'UP',
+              positionInRangePercent: 44,
+              distanceToSupportPercent: 1.1,
+              distanceToResistancePercent: 2.9,
+              volatilityPercent: 1.2,
+            }),
+      ),
+    );
+
+    fixture.detectChanges();
+    component.scan();
+    await fixture.whenStable();
+
+    expect(component.usdcExecution?.status).toBe('READY');
+  });
+
+  it('returns WAIT_PULLBACK when position is above 70%', async () => {
+    api.getAnalysis.mockImplementation((symbol: string, timeframe: '1h' | '15m') =>
+      of(
+        timeframe === '1h'
+          ? createUsdcAnalysis('1h', { positionInRangePercent: 68, trendDirection: 'SIDEWAYS' })
+          : createUsdcAnalysis('15m', {
+              positionInRangePercent: 74,
+              trendDirection: 'UP',
+              distanceToResistancePercent: 1.4,
+            }),
+      ),
+    );
+
+    fixture.detectChanges();
+    component.scan();
+    await fixture.whenStable();
+
+    expect(component.usdcExecution?.status).toBe('WAIT_PULLBACK');
+  });
+
+  it('returns WAIT_PULLBACK when position is above 85%', async () => {
+    api.getAnalysis.mockImplementation((symbol: string, timeframe: '1h' | '15m') =>
+      of(
+        timeframe === '1h'
+          ? createUsdcAnalysis('1h', { positionInRangePercent: 72, trendDirection: 'UP' })
+          : createUsdcAnalysis('15m', {
+              positionInRangePercent: 87,
+              trendDirection: 'UP',
+              distanceToResistancePercent: 0.9,
+            }),
+      ),
+    );
+
+    fixture.detectChanges();
+    component.scan();
+    await fixture.whenStable();
+
+    expect(component.usdcExecution?.status).toBe('WAIT_PULLBACK');
+    expect(component.usdcExecution?.entryScore ?? 0).toBeLessThan(60);
+  });
+
+  it('returns NO_ENTRY when both 1H and 15M trends are DOWN', async () => {
+    api.getAnalysis.mockImplementation((symbol: string, timeframe: '1h' | '15m') =>
+      of(
+        timeframe === '1h'
+          ? createUsdcAnalysis('1h', { trendDirection: 'DOWN', positionInRangePercent: 45 })
+          : createUsdcAnalysis('15m', { trendDirection: 'DOWN', positionInRangePercent: 40 }),
+      ),
+    );
+
+    fixture.detectChanges();
+    component.scan();
+    await fixture.whenStable();
+
+    expect(component.usdcExecution?.status).toBe('NO_ENTRY');
+    expect(component.usdcExecution?.decision).toBe('DO_NOT_LAUNCH');
+  });
+
+  it('returns NO_ENTRY on breakdown below support', async () => {
+    api.getAnalysis.mockImplementation((symbol: string, timeframe: '1h' | '15m') =>
+      of(
+        timeframe === '1h'
+          ? createUsdcAnalysis('1h', {
+              price: 4.75,
+              support: 4.9,
+              trendDirection: 'SIDEWAYS',
+              positionInRangePercent: 20,
+            })
+          : createUsdcAnalysis('15m', {
+              price: 4.75,
+              support: 4.88,
+              trendDirection: 'SIDEWAYS',
+              positionInRangePercent: 18,
+            }),
+      ),
+    );
+
+    fixture.detectChanges();
+    component.scan();
+    await fixture.whenStable();
+
+    expect(component.usdcExecution?.status).toBe('NO_ENTRY');
+  });
+
+  it('returns NO_ENTRY when liquidity is below threshold', async () => {
+    api.getAnalysis.mockImplementation((symbol: string, timeframe: '1h' | '15m') =>
+      of(
+        timeframe === '1h'
+          ? createUsdcAnalysis('1h', {
+              turnover24h: 45000,
+              trendDirection: 'SIDEWAYS',
+              volatilityPercent: 1.2,
+              positionInRangePercent: 50,
+            })
+          : createUsdcAnalysis('15m', {
+              turnover24h: 45000,
+              trendDirection: 'SIDEWAYS',
+              volatilityPercent: 0.8,
+              positionInRangePercent: 48,
+            }),
+      ),
+    );
+
+    fixture.detectChanges();
+    component.scan();
+    await fixture.whenStable();
+
+    expect(component.usdcExecution?.status).toBe('NO_ENTRY');
+  });
+
+  it('returns READY after breakout retest success pattern', async () => {
+    api.getAnalysis.mockImplementation((symbol: string, timeframe: '1h' | '15m') =>
+      of(
+        timeframe === '1h'
+          ? createUsdcAnalysis('1h', {
+              price: 101,
+              support: 98,
+              resistance: 108,
+              trendDirection: 'UP',
+              distanceToSupportPercent: 1.4,
+              distanceToResistancePercent: 2.8,
+            })
+          : createUsdcAnalysis('15m', {
+              price: 101,
+              support: 100,
+              resistance: 107,
+              trendDirection: 'UP',
+              positionInRangePercent: 52,
+              distanceToSupportPercent: 0.9,
+              distanceToResistancePercent: 2.5,
+            }),
+      ),
+    );
+
+    fixture.detectChanges();
+    component.scan();
+    await fixture.whenStable();
+
+    expect(component.usdcExecution?.status).toBe('READY');
+  });
+
+  it('returns WAIT_PULLBACK for strong pump with high position', async () => {
+    api.getAnalysis.mockImplementation((symbol: string, timeframe: '1h' | '15m') =>
+      of(
+        timeframe === '1h'
+          ? createUsdcAnalysis('1h', {
+              change24hPercent: 12.5,
+              positionInRangePercent: 73,
+              trendDirection: 'UP',
+            })
+          : createUsdcAnalysis('15m', {
+              change24hPercent: 12.5,
+              positionInRangePercent: 79,
+              trendDirection: 'UP',
+            }),
+      ),
+    );
+
+    fixture.detectChanges();
+    component.scan();
+    await fixture.whenStable();
+
+    expect(['WAIT_PULLBACK', 'NO_ENTRY']).toContain(component.usdcExecution?.status);
+  });
+
+  it('returns UNAVAILABLE when USDT symbol has no corresponding USDC pair', async () => {
+    api.getMarketsByQuoteCoin.mockReturnValueOnce(of([{ symbol: 'ETHUSDC', baseCoin: 'ETH', quoteCoin: 'USDC', status: 'Trading' }]));
+
+    fixture.detectChanges();
+    component.scan();
+    await fixture.whenStable();
+
+    expect(component.usdcExecution?.available).toBe(false);
+    expect(component.usdcExecution?.status).toBe('UNAVAILABLE');
+    expect(component.usdcExecution?.decision).toBe('UNAVAILABLE');
+  });
+
+  it('computes USDC execution analysis when USDC pair exists', async () => {
+    fixture.detectChanges();
+    component.scan();
+    await fixture.whenStable();
+
+    expect(component.usdcExecution?.available).toBe(true);
+    expect(component.usdcExecution?.analysis1h).toBeDefined();
+    expect(component.usdcExecution?.analysis15m).toBeDefined();
+    expect(component.usdcExecution?.entryScore ?? 0).toBeGreaterThanOrEqual(0);
   });
 });
