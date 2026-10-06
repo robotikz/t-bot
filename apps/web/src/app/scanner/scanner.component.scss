@@ -286,6 +286,96 @@ tbody tr.active {
   color: #0f172a;
 }
 
+.execution-panel {
+  margin-bottom: 1rem;
+  padding: 0.9rem;
+  border: 1px solid #dbeafe;
+  border-radius: 0.75rem;
+  background: linear-gradient(180deg, #f8fbff 0%, #f1f5f9 100%);
+}
+
+.execution-header {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+  margin-bottom: 0.9rem;
+}
+
+.execution-title {
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.6rem;
+  background: #ffffff;
+}
+
+.execution-title h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.execution-subtitle {
+  margin: 0.35rem 0 0;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.execution-title-right {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.execution-card {
+  margin-bottom: 0.9rem;
+}
+
+.execution-grid {
+  margin-bottom: 0.9rem;
+}
+
+.recommendation-card {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.ok-yes {
+  color: #166534;
+}
+
+.ok-no {
+  color: #991b1b;
+}
+
+.execution-ready {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.execution-wait {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.execution-no-entry {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.decision-launch {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.decision-wait {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.decision-stop {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 .detail-grid {
   display: grid;
   gap: 1rem;
@@ -320,6 +410,10 @@ ul {
 
 @media (max-width: 900px) {
   .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .execution-header {
     grid-template-columns: 1fr;
   }
 }

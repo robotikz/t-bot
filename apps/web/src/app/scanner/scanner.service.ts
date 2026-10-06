@@ -70,6 +70,18 @@ export interface QuoteCoinsResult {
   data: string[];
 }
 
+export interface MarketsResult {
+  count: number;
+  data: MarketInstrument[];
+}
+
+export interface MarketInstrument {
+  symbol: string;
+  baseCoin: string;
+  quoteCoin: string;
+  status: string;
+}
+
 export interface ScannerQuery {
   timeframe?: ScannerTimeframe;
   secondaryTimeframe?: ScannerTimeframe;
@@ -112,5 +124,30 @@ export class ScannerService {
     }
 
     return this.http.get<ApiEnvelope<ScanResult>>(`${API_BASE_URL}/scanner`, { params }).pipe(map((response) => response.data));
+  }
+
+  getMarketsByQuoteCoin(quoteCoin: string): Observable<MarketInstrument[]> {
+    const params = new HttpParams().set('quoteCoin', quoteCoin.toUpperCase());
+
+    return this.http
+      .get<MarketsResult | ApiEnvelope<MarketsResult>>(`${API_BASE_URL}/markets`, { params })
+      .pipe(
+        map((response) => {
+          if (Array.isArray((response as MarketsResult)?.data)) {
+            return (response as MarketsResult).data;
+          }
+
+          const nestedData = (response as ApiEnvelope<MarketsResult>)?.data?.data;
+          return Array.isArray(nestedData) ? nestedData : [];
+        }),
+      );
+  }
+
+  getAnalysis(symbol: string, timeframe: ScannerTimeframe): Observable<MarketAnalysis> {
+    const params = new HttpParams().set('timeframe', timeframe);
+
+    return this.http
+      .get<ApiEnvelope<MarketAnalysis>>(`${API_BASE_URL}/analysis/${symbol.toUpperCase()}`, { params })
+      .pipe(map((response) => response.data));
   }
 }

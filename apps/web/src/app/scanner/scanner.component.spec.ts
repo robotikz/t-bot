@@ -9,11 +9,11 @@ const scanResult: ScanResult = {
   count: 2,
   candidates: [
     {
-      symbol: 'ETHUSDC',
+      symbol: 'ETHUSDT',
       score: 72.5,
       status: 'WATCH',
       market: {
-        symbol: 'ETHUSDC',
+        symbol: 'ETHUSDT',
         lastPrice: 3500,
         change24hPercent: 2.3,
         high24h: 3600,
@@ -23,7 +23,7 @@ const scanResult: ScanResult = {
         timestamp: 1,
       },
       analysis1h: {
-        symbol: 'ETHUSDC',
+        symbol: 'ETHUSDT',
         price: 3500,
         change24hPercent: 2.3,
         volume24h: 250000,
@@ -45,7 +45,7 @@ const scanResult: ScanResult = {
         rejectionReasons: [],
       },
       analysis15m: {
-        symbol: 'ETHUSDC',
+        symbol: 'ETHUSDT',
         price: 3500,
         change24hPercent: 2.3,
         volume24h: 250000,
@@ -70,11 +70,11 @@ const scanResult: ScanResult = {
       rejectionReasons: ['LOW_RANGE'],
     },
     {
-      symbol: 'BTCUSDC',
+      symbol: 'BTCUSDT',
       score: 90.12,
       status: 'CANDIDATE',
       market: {
-        symbol: 'BTCUSDC',
+        symbol: 'BTCUSDT',
         lastPrice: 63500,
         change24hPercent: -1.2,
         high24h: 64000,
@@ -84,7 +84,7 @@ const scanResult: ScanResult = {
         timestamp: 1,
       },
       analysis1h: {
-        symbol: 'BTCUSDC',
+        symbol: 'BTCUSDT',
         price: 63500,
         change24hPercent: -1.2,
         volume24h: 500000,
@@ -106,7 +106,7 @@ const scanResult: ScanResult = {
         rejectionReasons: [],
       },
       analysis15m: {
-        symbol: 'BTCUSDC',
+        symbol: 'BTCUSDT',
         price: 63500,
         change24hPercent: -1.2,
         volume24h: 500000,
@@ -136,11 +136,47 @@ const scanResult: ScanResult = {
 describe('ScannerComponent', () => {
   let fixture: ComponentFixture<ScannerComponent>;
   let component: ScannerComponent;
-  let api: { scan: ReturnType<typeof vi.fn> };
+  let api: {
+    scan: ReturnType<typeof vi.fn>;
+    getQuoteCoins: ReturnType<typeof vi.fn>;
+    getMarketsByQuoteCoin: ReturnType<typeof vi.fn>;
+    getAnalysis: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(async () => {
     api = {
       scan: vi.fn(() => of(scanResult)),
+      getQuoteCoins: vi.fn(() => of(['USDT', 'USDC'])),
+      getMarketsByQuoteCoin: vi.fn(() =>
+        of([
+          { symbol: 'BTCUSDC', baseCoin: 'BTC', quoteCoin: 'USDC', status: 'Trading' },
+          { symbol: 'ETHUSDC', baseCoin: 'ETH', quoteCoin: 'USDC', status: 'Trading' },
+        ]),
+      ),
+      getAnalysis: vi.fn((symbol: string, timeframe: '1h' | '15m') =>
+        of({
+          symbol,
+          price: symbol === 'BTCUSDC' ? 63480 : 3490,
+          change24hPercent: 1.9,
+          volume24h: 120000,
+          turnover24h: symbol === 'BTCUSDC' ? 1800000 : 600000,
+          timeframe,
+          rangeHigh: symbol === 'BTCUSDC' ? 64500 : 3600,
+          rangeLow: symbol === 'BTCUSDC' ? 62000 : 3400,
+          rangePercent: timeframe === '1h' ? 3.9 : 1.8,
+          support: symbol === 'BTCUSDC' ? 62500 : 3450,
+          resistance: symbol === 'BTCUSDC' ? 64000 : 3550,
+          distanceToSupportPercent: timeframe === '1h' ? 1.2 : 1.5,
+          distanceToResistancePercent: timeframe === '1h' ? 1.4 : 1.2,
+          positionInRangePercent: timeframe === '1h' ? 52 : 48,
+          volatilityPercent: timeframe === '1h' ? 2.4 : 1.2,
+          trendDirection: 'UP' as const,
+          trendStrength: 54,
+          liquidityScore: 85,
+          gridScore: 86,
+          rejectionReasons: [],
+        }),
+      ),
     };
 
     await TestBed.configureTestingModule({
@@ -152,6 +188,46 @@ describe('ScannerComponent', () => {
     component = fixture.componentInstance;
   });
 
+  const createUsdcAnalysis = (
+    timeframe: '1h' | '15m',
+    overrides: Partial<{
+      price: number;
+      turnover24h: number;
+      rangeHigh: number;
+      rangeLow: number;
+      rangePercent: number;
+      support: number;
+      resistance: number;
+      distanceToSupportPercent: number;
+      distanceToResistancePercent: number;
+      positionInRangePercent: number;
+      volatilityPercent: number;
+      trendDirection: 'UP' | 'DOWN' | 'SIDEWAYS';
+    }> = {},
+  ) => ({
+    symbol: 'BTCUSDC',
+    price: 5.252,
+    change24hPercent: 1.4,
+    volume24h: 420000,
+    turnover24h: 1500000,
+    timeframe,
+    rangeHigh: timeframe === '1h' ? 5.45 : 5.31,
+    rangeLow: timeframe === '1h' ? 4.832 : 4.978,
+    rangePercent: timeframe === '1h' ? 6.6 : 2.7,
+    support: timeframe === '1h' ? 4.832 : 4.978,
+    resistance: timeframe === '1h' ? 5.45 : 5.31,
+    distanceToSupportPercent: timeframe === '1h' ? 2.9 : 3.6,
+    distanceToResistancePercent: timeframe === '1h' ? 3.1 : 1.2,
+    positionInRangePercent: timeframe === '1h' ? 61 : 81,
+    volatilityPercent: timeframe === '1h' ? 2.3 : 1.8,
+    trendDirection: 'UP' as const,
+    trendStrength: 58,
+    liquidityScore: 84,
+    gridScore: 82,
+    rejectionReasons: [],
+    ...overrides,
+  });
+
   it('handles a successful response', async () => {
     fixture.detectChanges();
 
@@ -161,8 +237,8 @@ describe('ScannerComponent', () => {
 
     expect(api.scan).toHaveBeenCalledTimes(1);
     expect(component.state).toBe('success');
-    expect(component.candidates[0]?.symbol).toBe('BTCUSDC');
-    expect(component.selectedCandidate?.symbol).toBe('BTCUSDC');
+    expect(component.candidates[0]?.symbol).toBe('BTCUSDT');
+    expect(component.selectedCandidate?.symbol).toBe('BTCUSDT');
   });
 
   it('shows loading state while request is in flight', async () => {
@@ -219,7 +295,7 @@ describe('ScannerComponent', () => {
 
     component.selectCandidate(component.candidates[1]);
 
-    expect(component.selectedCandidate?.symbol).toBe('ETHUSDC');
+    expect(component.selectedCandidate?.symbol).toBe('ETHUSDT');
   });
 
   it('renders score and status in table', async () => {
@@ -240,5 +316,159 @@ describe('ScannerComponent', () => {
     component.selectCandidate(component.candidates[1]);
 
     expect(component.selectedCandidate?.rejectionReasons).toContain('LOW_RANGE');
+  });
+
+  it('enforces pullback entry below current price when status is WAIT_PULLBACK', async () => {
+    api.getAnalysis.mockImplementation((symbol: string, timeframe: '1h' | '15m') =>
+      of(
+        timeframe === '1h'
+          ? createUsdcAnalysis('1h', {
+              price: 5.252,
+              support: 4.832,
+              resistance: 5.45,
+              distanceToResistancePercent: 3.2,
+            })
+          : createUsdcAnalysis('15m', {
+              price: 5.252,
+              support: 4.978,
+              resistance: 5.31,
+              positionInRangePercent: 81,
+              trendDirection: 'SIDEWAYS',
+              distanceToSupportPercent: 3.9,
+              distanceToResistancePercent: 1.3,
+            }),
+      ),
+    );
+
+    fixture.detectChanges();
+    component.scan();
+    await fixture.whenStable();
+
+    expect(component.usdcExecution?.status).toBe('WAIT_PULLBACK');
+    expect(component.usdcExecution?.recommendation).toBeDefined();
+    expect((component.usdcExecution?.recommendation?.entryHigh ?? Number.POSITIVE_INFINITY)).toBeLessThan(
+      component.usdcExecution?.market?.currentPrice ?? 0,
+    );
+  });
+
+  it('allows READY entry zone to include current price', async () => {
+    api.getAnalysis.mockImplementation((symbol: string, timeframe: '1h' | '15m') =>
+      of(
+        timeframe === '1h'
+          ? createUsdcAnalysis('1h', {
+              price: 5.12,
+              positionInRangePercent: 52,
+              distanceToSupportPercent: 1.8,
+              distanceToResistancePercent: 3.3,
+            })
+          : createUsdcAnalysis('15m', {
+              price: 5.12,
+              positionInRangePercent: 48,
+              distanceToSupportPercent: 1.2,
+              distanceToResistancePercent: 2.7,
+              trendDirection: 'UP',
+            }),
+      ),
+    );
+
+    fixture.detectChanges();
+    component.scan();
+    await fixture.whenStable();
+
+    const recommendation = component.usdcExecution?.recommendation;
+    const currentPrice = component.usdcExecution?.market?.currentPrice ?? 0;
+
+    expect(component.usdcExecution?.status).toBe('READY');
+    expect(recommendation).toBeDefined();
+    expect((recommendation?.entryLow ?? 0) <= currentPrice && (recommendation?.entryHigh ?? 0) >= currentPrice).toBe(true);
+  });
+
+  it('does not create an actionable entry zone for NO_ENTRY', async () => {
+    api.getAnalysis.mockImplementation((symbol: string, timeframe: '1h' | '15m') =>
+      of(
+        timeframe === '1h'
+          ? createUsdcAnalysis('1h', {
+              turnover24h: 1500,
+              distanceToSupportPercent: 2.2,
+              distanceToResistancePercent: 2.5,
+            })
+          : createUsdcAnalysis('15m', {
+              volatilityPercent: 0.1,
+              positionInRangePercent: 50,
+              distanceToSupportPercent: 2,
+              distanceToResistancePercent: 2,
+            }),
+      ),
+    );
+
+    fixture.detectChanges();
+    component.scan();
+    await fixture.whenStable();
+
+    expect(component.usdcExecution?.status).toBe('NO_ENTRY');
+    expect(component.usdcExecution?.recommendation).toBeUndefined();
+  });
+
+  it('builds WAIT_BREAKOUT_RETEST entry around retest area, not around current price', async () => {
+    api.getAnalysis.mockImplementation((symbol: string, timeframe: '1h' | '15m') =>
+      of(
+        timeframe === '1h'
+          ? createUsdcAnalysis('1h', {
+              price: 100,
+              support: 92,
+              resistance: 112,
+              distanceToResistancePercent: 1,
+              trendDirection: 'UP',
+            })
+          : createUsdcAnalysis('15m', {
+              price: 100,
+              support: 95,
+              resistance: 110,
+              positionInRangePercent: 78,
+              distanceToResistancePercent: 0.7,
+              trendDirection: 'UP',
+            }),
+      ),
+    );
+
+    fixture.detectChanges();
+    component.scan();
+    await fixture.whenStable();
+
+    const recommendation = component.usdcExecution?.recommendation;
+    const retestMid = ((recommendation?.entryLow ?? 0) + (recommendation?.entryHigh ?? 0)) / 2;
+
+    expect(component.usdcExecution?.status).toBe('WAIT_BREAKOUT_RETEST');
+    expect(recommendation).toBeDefined();
+    expect(retestMid).toBeGreaterThan(104);
+  });
+
+  it('keeps WAIT_CONFIRMATION as WAIT while still showing a future entry zone', async () => {
+    api.getAnalysis.mockImplementation((symbol: string, timeframe: '1h' | '15m') =>
+      of(
+        timeframe === '1h'
+          ? createUsdcAnalysis('1h', {
+              price: 5.3,
+              distanceToSupportPercent: 1.7,
+              distanceToResistancePercent: 2.9,
+              trendDirection: 'UP',
+            })
+          : createUsdcAnalysis('15m', {
+              price: 5.3,
+              positionInRangePercent: 55,
+              distanceToSupportPercent: 1.2,
+              distanceToResistancePercent: 2.4,
+              trendDirection: 'DOWN',
+            }),
+      ),
+    );
+
+    fixture.detectChanges();
+    component.scan();
+    await fixture.whenStable();
+
+    expect(component.usdcExecution?.status).toBe('WAIT_CONFIRMATION');
+    expect(component.usdcExecution?.decision).toBe('WAIT');
+    expect(component.usdcExecution?.recommendation).toBeDefined();
   });
 });

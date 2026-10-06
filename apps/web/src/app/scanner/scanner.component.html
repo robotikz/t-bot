@@ -138,6 +138,129 @@
         <pre>{{ analysisText }}</pre>
       </div>
 
+      <section class="execution-panel">
+        <div class="execution-header">
+          <div class="execution-title">
+            <span class="eyebrow">Market analysis</span>
+            <h3>{{ candidate.symbol }}</h3>
+            <p class="execution-subtitle">↓ analyzed using USDT data</p>
+          </div>
+
+          @if (usdcExecution; as execution) {
+            <div class="execution-title execution-title-right">
+              <span class="eyebrow">Grid bot execution</span>
+              <h3>{{ execution.executionPairSymbol }}</h3>
+              <p class="execution-subtitle">↓ actual Bybit EU Spot Grid pair</p>
+            </div>
+          }
+        </div>
+
+        @if (usdcExecution; as execution) {
+          @if (execution.isLoading) {
+            <p class="loading">Loading USDC execution pair data...</p>
+          } @else {
+            <div class="summary-card execution-card">
+              <h3>USDC EXECUTION / GRID BOT</h3>
+              <p>USDT Analysis Pair: {{ execution.analysisPairSymbol }}</p>
+              <p>USDC Execution Pair: {{ execution.executionPairSymbol }}</p>
+              <p>
+                USDC Pair Available:
+                <strong [class.ok-yes]="execution.available" [class.ok-no]="!execution.available">{{ execution.available ? 'YES' : 'NO' }}</strong>
+              </p>
+
+              <p>
+                Execution:
+                <span class="status" [ngClass]="executionStatusClass(execution.status)">{{ execution.status }}</span>
+              </p>
+
+              <p>
+                Execution Decision:
+                <span class="status" [ngClass]="executionDecisionClass(execution.decision)">{{ execution.decision }}</span>
+              </p>
+
+              <p>Reason: {{ execution.reason }}</p>
+              @if (execution.errorMessage) {
+                <p class="error">{{ execution.errorMessage }}</p>
+              }
+            </div>
+
+            @if (execution.available) {
+              <div class="detail-grid execution-grid">
+                <div class="summary-card">
+                  <h3>USDC Market (Execution Pair)</h3>
+                  <p>Current Price: {{ execution.market?.currentPrice | number: '1.2-6' }}</p>
+                  <p>
+                    24h Change:
+                    {{ (execution.market?.change24hPercent ?? 0) >= 0 ? '+' : '' }}{{ execution.market?.change24hPercent | number: '1.1-2' }}%
+                  </p>
+                  <p>24h Turnover: {{ execution.market?.turnover24h | number: '1.0-0' }}</p>
+                </div>
+
+                <div class="summary-card">
+                  <h3>USDC 1H</h3>
+                  <p>1H Support: {{ execution.analysis1h?.support | number: '1.2-6' }}</p>
+                  <p>1H Resistance: {{ execution.analysis1h?.resistance | number: '1.2-6' }}</p>
+                  <p>1H Range: {{ execution.analysis1h?.rangePercent | number: '1.1-2' }}%</p>
+                  <p>1H Position: {{ execution.analysis1h?.positionInRangePercent | number: '1.0-0' }}%</p>
+                  <p>1H Volatility: {{ execution.analysis1h?.volatilityPercent | number: '1.1-2' }}%</p>
+                  <p>1H Trend: {{ execution.analysis1h?.trendDirection ?? 'N/A' }}</p>
+                </div>
+
+                <div class="summary-card">
+                  <h3>USDC 15M</h3>
+                  <p>15M Support: {{ execution.analysis15m?.support | number: '1.2-6' }}</p>
+                  <p>15M Resistance: {{ execution.analysis15m?.resistance | number: '1.2-6' }}</p>
+                  <p>15M Range: {{ execution.analysis15m?.rangePercent | number: '1.1-2' }}%</p>
+                  <p>15M Position: {{ execution.analysis15m?.positionInRangePercent | number: '1.0-0' }}%</p>
+                  <p>15M Volatility: {{ execution.analysis15m?.volatilityPercent | number: '1.1-2' }}%</p>
+                  <p>15M Trend: {{ execution.analysis15m?.trendDirection ?? 'N/A' }}</p>
+                </div>
+
+                <div class="summary-card">
+                  <h3>Grid Bot Execution Check</h3>
+                  <p>USDC pair available: {{ execution.checks.usdcPairAvailable ? 'YES' : 'NO' }}</p>
+                  <p>Suitable for Spot Grid: {{ execution.checks.suitableForSpotGrid ? 'YES' : 'NO' }}</p>
+                  <p>Liquidity sufficient: {{ execution.checks.liquiditySufficient ? 'YES' : 'NO' }}</p>
+                  <p>Price close to support: {{ execution.checks.closeToSupport ? 'YES' : 'NO' }}</p>
+                  <p>Price too close to resistance: {{ execution.checks.tooCloseToResistance ? 'YES' : 'NO' }}</p>
+                  <p>1H trend acceptable: {{ execution.checks.trend1hAcceptable ? 'YES' : 'NO' }}</p>
+                  <p>15M trend acceptable: {{ execution.checks.trend15mAcceptable ? 'YES' : 'NO' }}</p>
+                  <p>Volatility sufficient: {{ execution.checks.volatilitySufficient ? 'YES' : 'NO' }}</p>
+                  <p>Inside reasonable range: {{ execution.checks.insideReasonableRange ? 'YES' : 'NO' }}</p>
+                </div>
+              </div>
+
+              @if (execution.recommendation; as recommendation) {
+                <div class="summary-card recommendation-card">
+                  <h3>Recommended Grid Setup</h3>
+                  <p>Investment: {{ recommendation.investmentUsdc }} USDC</p>
+                  <p>
+                    Recommended Entry:
+                    {{ recommendation.entryLow | number: '1.2-6' }} - {{ recommendation.entryHigh | number: '1.2-6' }}
+                  </p>
+                  <p>
+                    Recommended Grid Range:
+                    {{ recommendation.gridLow | number: '1.2-6' }} - {{ recommendation.gridHigh | number: '1.2-6' }}
+                  </p>
+                  <p>Grid Count: {{ recommendation.gridCount }}</p>
+                  <p>Stop Loss: {{ recommendation.stopLoss | number: '1.2-6' }}</p>
+                  <p>Take Profit: {{ recommendation.takeProfit | number: '1.2-6' }}</p>
+                  <p>Trailing Up: {{ recommendation.trailingUp ? 'ON' : 'OFF' }}</p>
+                  <p>Trailing Stop: {{ recommendation.trailingStopPercent | number: '1.1-2' }}%</p>
+                  <p>Risk: {{ recommendation.risk }}</p>
+                  <p>
+                    Execution Decision:
+                    <span class="status" [ngClass]="executionDecisionClass(recommendation.executionDecision)">
+                      {{ recommendation.executionDecision }}
+                    </span>
+                  </p>
+                </div>
+              }
+            }
+          }
+        }
+      </section>
+
       <div class="detail-grid">
         <div class="summary-card">
           <h3>Market summary</h3>
