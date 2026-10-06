@@ -18,14 +18,14 @@ export class ScannerComponent {
   private readonly fb = inject(FormBuilder);
   private readonly cdr = inject(ChangeDetectorRef);
 
-  quoteCoins: string[] = ['USDC'];
+  quoteCoins: string[] = ['USDT'];
   isFiltersExpanded = false;
 
   readonly form = this.fb.nonNullable.group({
-    quoteCoin: this.fb.nonNullable.control<string>('USDC'),
+    quoteCoin: this.fb.nonNullable.control<string>('USDT'),
     timeframe: this.fb.nonNullable.control<'1h' | '15m'>('1h'),
     secondaryTimeframe: this.fb.nonNullable.control<'1h' | '15m'>('15m'),
-    limit: this.fb.nonNullable.control<number>(100, [Validators.min(1), Validators.max(100)]),
+    limit: this.fb.nonNullable.control<number>(100, [Validators.min(1), Validators.max(500)]),
     minTurnover: this.fb.nonNullable.control<number | null>(10000),
   });
 
@@ -37,18 +37,15 @@ export class ScannerComponent {
 
   constructor() {
     this.scannerService.getQuoteCoins().pipe(
-      tap((quoteCoins) => console.log('[scanner] quoteCoins raw', quoteCoins)),
-      map((quoteCoins) => (quoteCoins.length > 0 ? quoteCoins : ['USDC'])),
-      tap((quoteCoins) => console.log('[scanner] quoteCoins normalized', quoteCoins)),
+      map((quoteCoins) => (quoteCoins.length > 0 ? quoteCoins : ['USDT'])),
       catchError((error) => {
-        console.error('[scanner] quoteCoins failed', error);
-        return of(['USDC']);
+        return of(['USDT']);
       }),
     ).subscribe((quoteCoins) => {
       this.quoteCoins = quoteCoins;
 
       if (!quoteCoins.includes(this.form.controls.quoteCoin.value)) {
-        this.form.controls.quoteCoin.setValue(quoteCoins[0] ?? 'USDC');
+        this.form.controls.quoteCoin.setValue(quoteCoins[0] ?? 'USDT');
       }
 
       this.cdr.detectChanges();

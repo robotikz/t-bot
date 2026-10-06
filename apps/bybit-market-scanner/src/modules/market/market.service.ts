@@ -15,6 +15,10 @@ export class MarketService {
     private readonly config: AppConfig
   ) {}
 
+  async getUSDTMarkets(): Promise<MarketInstrument[]> {
+    return this.getMarketsByQuoteCoin('USDT');
+  }
+
   async getUSDCMarkets(): Promise<MarketInstrument[]> {
     return this.getMarketsByQuoteCoin('USDC');
   }
@@ -26,7 +30,7 @@ export class MarketService {
     return instruments
       .map(mapBybitInstrument)
       .filter(
-        (item) => item.status === 'Trading' && item.quoteCoin.toUpperCase() === normalizedQuoteCoin
+        (item) => item.quoteCoin.toUpperCase() === normalizedQuoteCoin
       );
   }
 

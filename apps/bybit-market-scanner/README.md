@@ -1,6 +1,6 @@
 # Bybit Market Scanner (MVP Backend)
 
-Fastify + TypeScript backend for scanning Bybit spot USDC pairs and ranking grid-trading candidates.
+Fastify + TypeScript backend for scanning Bybit spot USDT pairs and ranking grid-trading candidates.
 
 ## Features
 
@@ -18,7 +18,7 @@ Fastify + TypeScript backend for scanning Bybit spot USDC pairs and ranking grid
 ## API
 
 - `GET /api/health`
-- `GET /api/markets?quoteCoin=USDC`
+- `GET /api/markets?quoteCoin=USDT`
 - `GET /api/scanner?timeframe=15m|1h&secondaryTimeframe=15m|1h&limit=100..200&minTurnover=<number>`
 
 ## Setup

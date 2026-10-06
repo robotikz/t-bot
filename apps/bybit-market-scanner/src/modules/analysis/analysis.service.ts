@@ -47,7 +47,7 @@ export class AnalysisService {
 
     const rejectionReasons: string[] = [];
 
-    if (ticker.turnover24h < this.config.minTurnover24hUsdc) {
+    if (ticker.turnover24h < this.config.minTurnover24hUsdt) {
       rejectionReasons.push('LOW_LIQUIDITY');
     }
 

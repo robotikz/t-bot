@@ -15,7 +15,7 @@ export interface AppConfig {
   port: number;
   bybitBaseUrl: string;
   analysisCandleLimit: number;
-  minTurnover24hUsdc: number;
+  minTurnover24hUsdt: number;
   max24hDropPercent: number;
   max1hWindowDropPercent: number;
   maxTrendStrengthPercent: number;
@@ -36,11 +36,16 @@ export interface AppConfig {
 }
 
 export function loadConfig(): AppConfig {
+  const minTurnover24hUsdt = readNumber(
+    'MIN_TURNOVER_24H_USDT',
+    readNumber('MIN_TURNOVER_24H_USDC', 1_000_000)
+  );
+
   return {
     port: readNumber('PORT', 3000),
     bybitBaseUrl: process.env.BYBIT_BASE_URL ?? 'https://api.bybit.com',
     analysisCandleLimit: clampNumber(readNumber('ANALYSIS_CANDLE_LIMIT', 200), 100, 200),
-    minTurnover24hUsdc: readNumber('MIN_TURNOVER_24H_USDC', 1_000_000),
+    minTurnover24hUsdt,
     max24hDropPercent: readNumber('MAX_24H_DROP_PERCENT', 8),
     max1hWindowDropPercent: readNumber('MAX_1H_WINDOW_DROP_PERCENT', 10),
     maxTrendStrengthPercent: readNumber('MAX_TREND_STRENGTH_PERCENT', 5),

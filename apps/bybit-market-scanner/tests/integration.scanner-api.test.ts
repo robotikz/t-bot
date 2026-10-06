@@ -51,15 +51,15 @@ describe('scanner api integration', () => {
                 category: 'spot',
                 list: [
                   {
-                    symbol: 'BTCUSDC',
+                    symbol: 'BTCUSDT',
                     baseCoin: 'BTC',
-                    quoteCoin: 'USDC',
+                    quoteCoin: 'USDT',
                     status: 'Trading'
                   },
                   {
-                    symbol: 'ETHUSDC',
+                    symbol: 'ETHUSDT',
                     baseCoin: 'ETH',
-                    quoteCoin: 'USDC',
+                    quoteCoin: 'USDT',
                     status: 'Trading'
                   }
                 ]
@@ -79,7 +79,7 @@ describe('scanner api integration', () => {
                 category: 'spot',
                 list: [
                   {
-                    symbol: 'BTCUSDC',
+                    symbol: 'BTCUSDT',
                     lastPrice: '100',
                     price24hPcnt: '0.01',
                     highPrice24h: '101',
@@ -88,7 +88,7 @@ describe('scanner api integration', () => {
                     turnover24h: '2000000'
                   },
                   {
-                    symbol: 'ETHUSDC',
+                    symbol: 'ETHUSDT',
                     lastPrice: '50',
                     price24hPcnt: '0.005',
                     highPrice24h: '51',
@@ -105,13 +105,13 @@ describe('scanner api integration', () => {
         }
 
         if (url.pathname.endsWith('/v5/market/kline')) {
-          const symbol = url.searchParams.get('symbol') ?? 'BTCUSDC';
+          const symbol = url.searchParams.get('symbol') ?? 'BTCUSDT';
           const interval = url.searchParams.get('interval') ?? '60';
           const limit = Number(url.searchParams.get('limit') ?? '100');
           const intervalMs = interval === '15' ? 15 * 60_000 : 60 * 60_000;
 
           const list =
-            symbol === 'BTCUSDC'
+            symbol === 'BTCUSDT'
               ? makeBybitKlines({ start: 100, delta: 0.1, limit, intervalMs })
               : makeBybitKlines({ start: 50, delta: 0.05, limit, intervalMs });
 
@@ -160,7 +160,7 @@ describe('scanner api integration', () => {
     };
 
     expect(body.data.count).toBeGreaterThan(0);
-    expect(body.data.candidates[0]?.symbol).toBe('BTCUSDC');
+    expect(body.data.candidates[0]?.symbol).toBe('BTCUSDT');
     expect(body.data.candidates[0]?.score).toBeGreaterThan(0);
 
     await app.close();

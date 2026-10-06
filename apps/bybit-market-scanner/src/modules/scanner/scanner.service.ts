@@ -7,6 +7,7 @@ import type { Timeframe } from '../market/market.types.js';
 import { EntryTimingService } from './domain/entry-timing/entry-timing.service.js';
 
 type LegacyMarketService = {
+  getUSDTMarkets?: () => ReturnType<MarketService['getMarketsByQuoteCoin']>;
   getUSDCMarkets?: () => ReturnType<MarketService['getMarketsByQuoteCoin']>;
 };
 
@@ -42,21 +43,23 @@ export class ScannerService {
     limit?: number;
     minTurnover?: number;
   }): Promise<ScanResult> {
-    const quoteCoin = (options?.quoteCoin ?? 'USDC').trim().toUpperCase();
+    const quoteCoin = (options?.quoteCoin ?? 'USDT').trim().toUpperCase();
     const primaryTimeframe = options?.timeframe ?? '1h';
     const secondaryTimeframe = options?.secondaryTimeframe ?? '15m';
     const topLimit = Math.max(1, Math.floor(options?.limit ?? this.config.topCandidates));
-    const minTurnover = options?.minTurnover ?? this.config.minTurnover24hUsdc;
+    const minTurnover = options?.minTurnover ?? this.config.minTurnover24hUsdt;
 
     const marketService = this.marketService as MarketService & LegacyMarketService;
     const marketsPromise =
       typeof marketService.getMarketsByQuoteCoin === 'function'
         ? marketService.getMarketsByQuoteCoin(quoteCoin)
-        : quoteCoin === 'USDC' && typeof marketService.getUSDCMarkets === 'function'
+        : quoteCoin === 'USDT' && typeof marketService.getUSDTMarkets === 'function'
+          ? marketService.getUSDTMarkets()
+          : quoteCoin === 'USDC' && typeof marketService.getUSDCMarkets === 'function'
           ? marketService.getUSDCMarkets()
           : Promise.reject(
               new Error(
-                'Market service is missing getMarketsByQuoteCoin(quoteCoin) for non-USDC scans'
+                'Market service is missing getMarketsByQuoteCoin(quoteCoin) and legacy quote-coin helpers'
               )
             );
 

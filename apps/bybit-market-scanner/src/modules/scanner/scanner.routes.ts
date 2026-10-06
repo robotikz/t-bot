@@ -19,7 +19,7 @@ export function registerScannerRoutes(app: FastifyInstance, scannerService: Scan
       minTurnover?: string;
     };
 
-    const quoteCoin = (query.quoteCoin ?? 'USDC').trim().toUpperCase();
+    const quoteCoin = (query.quoteCoin ?? 'USDT').trim().toUpperCase();
     if (!quoteCoin) {
       throw new ValidationError('INVALID_QUOTE_COIN', 'quoteCoin must be a non-empty string');
     }

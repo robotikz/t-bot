@@ -17,7 +17,7 @@ export function registerMarketRoutes(app: FastifyInstance, marketService: Market
 
   app.get('/api/markets', async (request) => {
     const query = request.query as { quoteCoin?: string };
-    const quoteCoin = (query.quoteCoin ?? 'USDC').trim().toUpperCase();
+    const quoteCoin = (query.quoteCoin ?? 'USDT').trim().toUpperCase();
 
     if (!quoteCoin) {
       throw new ValidationError('INVALID_QUOTE_COIN', 'quoteCoin must be a non-empty string');
@@ -33,7 +33,7 @@ export function registerMarketRoutes(app: FastifyInstance, marketService: Market
 
     const [ticker, markets] = await Promise.all([
       marketService.getMarketTicker(symbol),
-      marketService.getUSDCMarkets()
+      marketService.getUSDTMarkets()
     ]);
 
     const instrument = markets.find((item) => item.symbol === symbol);
