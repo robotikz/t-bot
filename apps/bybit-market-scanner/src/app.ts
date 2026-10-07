@@ -7,6 +7,9 @@ import { AnalysisService } from './modules/analysis/analysis.service.js';
 import { registerAnalysisRoutes } from './modules/analysis/analysis.routes.js';
 import { ScannerService } from './modules/scanner/scanner.service.js';
 import { registerScannerRoutes } from './modules/scanner/scanner.routes.js';
+import { SignalizerService } from './modules/signalizer/signalizer.service.js';
+import { registerSignalizerRoutes } from './modules/signalizer/signalizer.routes.js';
+import { InMemorySignalStateStore } from './modules/signalizer/state/signal-state.store.js';
 import { handleHttpError } from './shared/http/error-handler.js';
 
 export interface AppServices {
@@ -14,6 +17,7 @@ export interface AppServices {
   marketService: MarketService;
   analysisService: AnalysisService;
   scannerService: ScannerService;
+  signalizerService: SignalizerService;
 }
 
 export interface CreateAppOptions {
@@ -30,6 +34,10 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   const analysisService = options.services?.analysisService ?? new AnalysisService(marketService, config);
   const scannerService =
     options.services?.scannerService ?? new ScannerService(marketService, analysisService, config);
+  const signalStateStore = new InMemorySignalStateStore();
+  const signalizerService =
+    options.services?.signalizerService ??
+    new SignalizerService(marketService, scannerService, signalStateStore);
 
   app.setErrorHandler(handleHttpError);
 
@@ -37,6 +45,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   registerMarketRoutes(app, marketService);
   registerAnalysisRoutes(app, analysisService);
   registerScannerRoutes(app, scannerService);
+  registerSignalizerRoutes(app, signalizerService);
 
   return app;
 }
