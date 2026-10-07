@@ -146,14 +146,14 @@
         <div class="execution-header">
           <div class="execution-title">
             <span class="eyebrow">Market analysis</span>
-            <h3>{{ candidate.symbol }}</h3>
-            <p class="execution-subtitle">↓ analyzed using USDT data</p>
+            <h3>{{ usdcExecution?.analysisSymbol ?? candidate.symbol }}</h3>
+            <p class="execution-subtitle">↓ technical analysis market</p>
           </div>
 
           @if (usdcExecution; as execution) {
             <div class="execution-title execution-title-right">
               <span class="eyebrow">Grid bot execution</span>
-              <h3>{{ execution.executionPairSymbol }}</h3>
+              <h3>{{ execution.executionSymbol || 'N/A' }}</h3>
               <p class="execution-subtitle">↓ actual Bybit EU Spot Grid pair</p>
             </div>
           }
@@ -165,15 +165,23 @@
           } @else {
             <div class="summary-card execution-card">
               <h3>USDC EXECUTION / GRID BOT</h3>
-              <p>USDT Analysis Pair: {{ execution.analysisPairSymbol }}</p>
-              <p>USDC Execution Pair: {{ execution.executionPairSymbol }}</p>
+              <p>Analysis Symbol: {{ execution.analysisSymbol }}</p>
+              <p>Analysis Quote: {{ execution.analysisQuote }}</p>
+              <p>Base Asset: {{ execution.baseAsset }}</p>
+              <p>Execution Symbol: {{ execution.executionSymbol || 'N/A' }}</p>
+              <p>Execution Quote: {{ execution.executionQuote }}</p>
               <p>
                 USDC Pair Available:
                 <strong [class.ok-yes]="execution.available" [class.ok-no]="!execution.available">{{ execution.available ? 'YES' : 'NO' }}</strong>
               </p>
 
               <p>
-                Execution:
+                Execution Status:
+                <span class="status" [ngClass]="execution.executionStatus === 'AVAILABLE' ? 'execution-ready' : 'execution-no-entry'">{{ execution.executionStatus }}</span>
+              </p>
+
+              <p>
+                Entry Timing:
                 <span class="status" [ngClass]="executionStatusClass(execution.status)">{{ execution.status }}</span>
               </p>
 
@@ -196,6 +204,9 @@
                 <span class="status" [ngClass]="executionDecisionClass(execution.decision)">{{ execution.decision }}</span>
               </p>
 
+              <p>Execution Pair Exists: {{ execution.available ? 'YES' : 'NO' }}</p>
+              <p>USDC Turnover: {{ execution.market?.turnover24h | number: '1.0-0' }}</p>
+              <p>Liquidity: {{ execution.liquidityDecision }}</p>
               <p>Reason: {{ execution.reason }}</p>
               @if (execution.errorMessage) {
                 <p class="error">{{ execution.errorMessage }}</p>

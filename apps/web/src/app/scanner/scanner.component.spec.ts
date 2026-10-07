@@ -668,8 +668,10 @@ describe('ScannerComponent', () => {
     expect(['WAIT_PULLBACK', 'NO_ENTRY']).toContain(component.usdcExecution?.status);
   });
 
-  it('returns UNAVAILABLE when USDT symbol has no corresponding USDC pair', async () => {
-    api.getMarketsByQuoteCoin.mockReturnValueOnce(of([{ symbol: 'ETHUSDC', baseCoin: 'ETH', quoteCoin: 'USDC', status: 'Trading' }]));
+  it('returns UNAVAILABLE when analysis base has no corresponding USDC pair', async () => {
+    api.getMarketsByQuoteCoin.mockImplementation(() =>
+      of([{ symbol: 'ETHUSDC', baseCoin: 'ETH', quoteCoin: 'USDC', status: 'Trading' }]),
+    );
 
     fixture.detectChanges();
     component.scan();

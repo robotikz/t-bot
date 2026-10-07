@@ -2,7 +2,8 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { catchError, forkJoin, map, of, Observable, shareReplay, switchMap, tap } from 'rxjs';
-import { MarketAnalysis, ScannerCandidate, ScannerService } from './scanner.service';
+import { createExecutionMarketResolver, ExecutionMarketResolution, ExecutionMarketResolver } from './execution-market-resolver';
+import { MarketAnalysis, MarketInstrument, ScannerCandidate, ScannerService } from './scanner.service';
 
 type ViewState = 'initial' | 'loading' | 'success' | 'empty' | 'error';
 type EntryTiming = 'READY' | 'WAIT_PULLBACK' | 'WAIT_BREAKOUT_RETEST' | 'WAIT_CONFIRMATION' | 'NO_ENTRY';
@@ -38,12 +39,18 @@ interface GridSetupRecommendation {
 }
 
 interface UsdcExecutionSection {
-  analysisPairSymbol: string;
-  executionPairSymbol: string;
+  analysisSymbol: string;
+  analysisQuote: string;
+  baseAsset: string;
+  executionSymbol: string;
+  executionMarket: string;
+  executionQuote: string;
   available: boolean;
   isLoading: boolean;
   errorMessage: string;
   reason: string;
+  liquidityDecision: 'PASS' | 'FAIL' | 'N/A';
+  executionStatus: 'AVAILABLE' | 'UNAVAILABLE';
   marketSuitableForGrid: boolean;
   marketSuitabilityReason: string;
   entryTiming: EntryTiming;
@@ -91,8 +98,9 @@ export class ScannerComponent {
   candidates: ScannerCandidate[] = [];
   selectedCandidate: ScannerCandidate | null = null;
   usdcExecution: UsdcExecutionSection | null = null;
-  private usdcSymbols: Set<string> | null = null;
-  private usdcSymbolsRequest$: Observable<Set<string>> | null = null;
+  private spotInstruments: MarketInstrument[] | null = null;
+  private spotInstrumentsRequest$: Observable<MarketInstrument[]> | null = null;
+  private executionMarketResolver: ExecutionMarketResolver | null = null;
 
   constructor() {
     this.scannerService.getQuoteCoins().pipe(
@@ -197,13 +205,23 @@ export class ScannerComponent {
     const usdcExecutionText = this.usdcExecution
       ? [
           '',
-          'USDC EXECUTION / GRID BOT',
-          '==========================',
-          `USDT Analysis Pair: ${this.usdcExecution.analysisPairSymbol}`,
-          `USDC Execution Pair: ${this.usdcExecution.executionPairSymbol}`,
+          'ANALYSIS',
+          '========',
+          `Analysis Symbol: ${this.usdcExecution.analysisSymbol}`,
+          `Analysis Quote: ${this.usdcExecution.analysisQuote}`,
+          '',
+          'EXECUTION / GRID BOT',
+          '====================',
+          `Base Asset: ${this.usdcExecution.baseAsset}`,
+          `Execution Symbol: ${this.usdcExecution.executionSymbol || 'N/A'}`,
+          `Execution Quote: ${this.usdcExecution.executionQuote}`,
           `USDC Pair Available: ${this.usdcExecution.available ? 'YES' : 'NO'}`,
-          `Execution Status: ${this.usdcExecution.status}`,
+          `Execution Status: ${this.usdcExecution.executionStatus}`,
+          `Entry Timing: ${this.usdcExecution.status}`,
           `Execution Decision: ${this.usdcExecution.decision}`,
+          `Execution Pair Exists: ${this.usdcExecution.available ? 'YES' : 'NO'}`,
+          `USDC Turnover: ${this.formatNumber(this.usdcExecution.market?.turnover24h, 0)}`,
+          `Liquidity Decision: ${this.usdcExecution.liquidityDecision}`,
           `Reason: ${this.usdcExecution.reason}`,
         ]
       : [];
@@ -353,17 +371,22 @@ export class ScannerComponent {
   }
 
   private loadUsdcExecution(candidate: ScannerCandidate): void {
-    const analysisPairSymbol = candidate.symbol.toUpperCase();
-    const executionPairSymbol = this.toUsdcExecutionSymbol(analysisPairSymbol);
+    const analysisSymbol = candidate.symbol.toUpperCase();
     const requestId = ++this.usdcExecutionRequestId;
 
     this.usdcExecution = {
-      analysisPairSymbol,
-      executionPairSymbol,
+      analysisSymbol,
+      analysisQuote: 'UNKNOWN',
+      baseAsset: 'UNKNOWN',
+      executionSymbol: '',
+      executionMarket: '',
+      executionQuote: 'USDC',
       available: false,
       isLoading: true,
       errorMessage: '',
       reason: 'Checking USDC execution pair availability...',
+      liquidityDecision: 'N/A',
+      executionStatus: 'UNAVAILABLE',
       marketSuitableForGrid: false,
       marketSuitabilityReason: 'Waiting for USDC pair availability check.',
       entryTiming: 'WAIT_CONFIRMATION',
@@ -373,27 +396,31 @@ export class ScannerComponent {
       checks: this.emptyExecutionChecks(false),
     };
 
-    this.getUsdcSymbols()
+    this.getExecutionMarketResolver()
       .pipe(
-        switchMap((usdcSymbols) => {
-          const available = usdcSymbols.has(executionPairSymbol);
+        switchMap((resolver) => {
+          const resolution = resolver.resolveExecutionMarket(analysisSymbol);
 
-          if (!available) {
+          if (!resolution.executionAvailable) {
             return of({
               available: false as const,
               analysis1h: null,
               analysis15m: null,
+              resolution,
             });
           }
 
+          const executionSymbol = resolution.executionSymbol;
+
           return forkJoin({
-            analysis1h: this.scannerService.getAnalysis(executionPairSymbol, '1h'),
-            analysis15m: this.scannerService.getAnalysis(executionPairSymbol, '15m'),
+            analysis1h: this.scannerService.getAnalysis(executionSymbol, '1h'),
+            analysis15m: this.scannerService.getAnalysis(executionSymbol, '15m'),
           }).pipe(
             map(({ analysis1h, analysis15m }) => ({
               available: true as const,
               analysis1h,
               analysis15m,
+              resolution,
             })),
           );
         }),
@@ -402,6 +429,16 @@ export class ScannerComponent {
             available: false as const,
             analysis1h: null,
             analysis15m: null,
+            resolution: {
+              analysisSymbol,
+              baseAsset: 'UNKNOWN',
+              analysisQuote: 'UNKNOWN',
+              executionSymbol: '',
+              executionMarket: '',
+              executionQuote: 'USDC',
+              executionAvailable: false,
+              reason: 'Unable to resolve execution market.',
+            } satisfies ExecutionMarketResolution,
             error: 'Unable to load USDC execution data from Bybit at the moment.',
           });
         }),
@@ -412,15 +449,23 @@ export class ScannerComponent {
         }
 
         if (!result.available) {
+          const resolution = result.resolution;
+          const resolutionReason = resolution.reason ?? 'No corresponding USDC execution pair available.';
           const errorMessage = 'error' in result && result.error ? result.error : '';
 
           this.usdcExecution = {
-            analysisPairSymbol,
-            executionPairSymbol,
+            analysisSymbol: resolution.analysisSymbol,
+            analysisQuote: resolution.analysisQuote,
+            baseAsset: resolution.baseAsset,
+            executionSymbol: resolution.executionSymbol,
+            executionMarket: resolution.executionMarket,
+            executionQuote: resolution.executionQuote,
             available: false,
             isLoading: false,
             errorMessage,
-            reason: errorMessage || 'No corresponding USDC execution pair available.',
+            reason: errorMessage || resolutionReason,
+            liquidityDecision: 'N/A',
+            executionStatus: 'UNAVAILABLE',
             marketSuitableForGrid: false,
             marketSuitabilityReason: 'Cannot evaluate grid suitability because the USDC execution pair is unavailable.',
             entryTiming: 'NO_ENTRY',
@@ -434,8 +479,7 @@ export class ScannerComponent {
         }
 
         this.usdcExecution = this.buildUsdcExecutionSection(
-          analysisPairSymbol,
-          executionPairSymbol,
+          result.resolution,
           result.analysis1h,
           result.analysis15m,
         );
@@ -443,46 +487,82 @@ export class ScannerComponent {
       });
   }
 
-  private getUsdcSymbols(): Observable<Set<string>> {
-    if (this.usdcSymbols) {
-      return of(this.usdcSymbols);
+  private getExecutionMarketResolver(): Observable<ExecutionMarketResolver> {
+    if (this.executionMarketResolver) {
+      return of(this.executionMarketResolver);
     }
 
-    if (this.usdcSymbolsRequest$) {
-      return this.usdcSymbolsRequest$;
+    return this.getSpotInstruments().pipe(
+      map((instruments) => {
+        this.executionMarketResolver = createExecutionMarketResolver(instruments);
+        return this.executionMarketResolver;
+      }),
+    );
+  }
+
+  private getSpotInstruments(): Observable<MarketInstrument[]> {
+    if (this.spotInstruments) {
+      return of(this.spotInstruments);
     }
 
-    this.usdcSymbolsRequest$ = this.scannerService.getMarketsByQuoteCoin('USDC').pipe(
-      map((markets) => new Set(markets.map((market) => market.symbol.toUpperCase()))),
-      tap((symbols) => {
-        this.usdcSymbols = symbols;
+    if (this.spotInstrumentsRequest$) {
+      return this.spotInstrumentsRequest$;
+    }
+
+    this.spotInstrumentsRequest$ = this.scannerService.getQuoteCoins().pipe(
+      map((quoteCoins) => {
+        const normalized = quoteCoins
+          .map((quoteCoin) => quoteCoin.trim().toUpperCase())
+          .filter((quoteCoin) => quoteCoin.length > 0);
+
+        return [...new Set(normalized)];
+      }),
+      switchMap((quoteCoins) => {
+        if (quoteCoins.length === 0) {
+          return of([] as MarketInstrument[][]);
+        }
+
+        return forkJoin(
+          quoteCoins.map((quoteCoin) =>
+            this.scannerService.getMarketsByQuoteCoin(quoteCoin).pipe(catchError(() => of([]))),
+          ),
+        );
+      }),
+      map((marketGroups) => {
+        const bySymbol = new Map<string, MarketInstrument>();
+        for (const market of marketGroups.flat()) {
+          const symbol = market.symbol.toUpperCase();
+          const existing = bySymbol.get(symbol);
+          if (!existing || existing.status.toUpperCase() !== 'TRADING') {
+            bySymbol.set(symbol, {
+              ...market,
+              symbol,
+              baseCoin: market.baseCoin.toUpperCase(),
+              quoteCoin: market.quoteCoin.toUpperCase(),
+              status: market.status,
+            });
+          }
+        }
+
+        return [...bySymbol.values()];
+      }),
+      tap((markets) => {
+        this.spotInstruments = markets;
       }),
       catchError(() => {
-        return of(new Set<string>());
+        return of([] as MarketInstrument[]);
       }),
       tap(() => {
-        this.usdcSymbolsRequest$ = null;
+        this.spotInstrumentsRequest$ = null;
       }),
       shareReplay(1),
     );
 
-    return this.usdcSymbolsRequest$;
-  }
-
-  private toUsdcExecutionSymbol(usdtSymbol: string): string {
-    const normalized = usdtSymbol.toUpperCase();
-
-    if (normalized.endsWith('USDT')) {
-      const baseAsset = normalized.slice(0, -4);
-      return `${baseAsset}USDC`;
-    }
-
-    return `${normalized}USDC`;
+    return this.spotInstrumentsRequest$;
   }
 
   private buildUsdcExecutionSection(
-    analysisPairSymbol: string,
-    executionPairSymbol: string,
+    resolution: ExecutionMarketResolution,
     analysis1h: MarketAnalysis,
     analysis15m: MarketAnalysis,
   ): UsdcExecutionSection {
@@ -590,12 +670,18 @@ export class ScannerComponent {
     });
 
     return {
-      analysisPairSymbol,
-      executionPairSymbol,
+      analysisSymbol: resolution.analysisSymbol,
+      analysisQuote: resolution.analysisQuote,
+      baseAsset: resolution.baseAsset,
+      executionSymbol: resolution.executionSymbol,
+      executionMarket: resolution.executionMarket,
+      executionQuote: resolution.executionQuote,
       available: true,
       isLoading: false,
       errorMessage: '',
       reason,
+      liquidityDecision: liquiditySufficient ? 'PASS' : 'FAIL',
+      executionStatus: 'AVAILABLE',
       marketSuitableForGrid,
       marketSuitabilityReason,
       entryTiming: status,
