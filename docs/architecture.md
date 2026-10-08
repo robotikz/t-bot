@@ -195,7 +195,7 @@ BacktestResult
 
 ### Bybit API assumptions
 
-- Base URLs: `https://api.bybit.com` for mainnet and `https://api-testnet.bybit.com` for testnet
+- Base URLs: configurable via environment (`BYBIT_API_BASE_URL` / legacy `BYBIT_BASE_URL`), defaulting to `https://api.bybit.eu` for mainnet and `https://api-testnet.bybit.com` for testnet
 - Instruments endpoint: `GET /v5/market/instruments-info?category=spot`
 - Candles endpoint: `GET /v5/market/kline?category=spot&symbol=...&interval=...`
 - Bybit REST responses use the common envelope `{ retCode, retMsg, result, retExtInfo, time }`

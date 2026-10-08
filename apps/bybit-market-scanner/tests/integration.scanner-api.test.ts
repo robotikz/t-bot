@@ -36,11 +36,15 @@ function makeBybitKlines(options: KlineOpts): [string, string, string, string, s
 }
 
 describe('scanner api integration', () => {
+  const requestedUrls: string[] = [];
+
   beforeEach(() => {
+    requestedUrls.length = 0;
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: URL | RequestInfo) => {
         const url = new URL(typeof input === 'string' ? input : input.toString());
+        requestedUrls.push(url.toString());
 
         if (url.pathname.endsWith('/v5/market/instruments-info')) {
           return new Response(
@@ -51,16 +55,16 @@ describe('scanner api integration', () => {
                 category: 'spot',
                 list: [
                   {
-                    symbol: 'BTCUSDT',
-                    baseCoin: 'BTC',
-                    quoteCoin: 'USDT',
+                    symbol: 'ASTERUSDC',
+                    baseCoin: 'ASTER',
+                    quoteCoin: 'USDC',
                     status: 'Trading'
                   },
                   {
-                    symbol: 'ETHUSDT',
-                    baseCoin: 'ETH',
+                    symbol: 'ASTERUSDT',
+                    baseCoin: 'ASTER',
                     quoteCoin: 'USDT',
-                    status: 'Trading'
+                    status: 'Settling'
                   }
                 ]
               },
@@ -71,6 +75,33 @@ describe('scanner api integration', () => {
         }
 
         if (url.pathname.endsWith('/v5/market/tickers')) {
+          const symbol = url.searchParams.get('symbol');
+
+          if (symbol) {
+            return new Response(
+              JSON.stringify({
+                retCode: 0,
+                retMsg: 'OK',
+                result: {
+                  category: 'spot',
+                  list: [
+                    {
+                      symbol,
+                      lastPrice: '0.1234',
+                      price24hPcnt: '0.02',
+                      highPrice24h: '0.1290',
+                      lowPrice24h: '0.1180',
+                      volume24h: '200000',
+                      turnover24h: '5000000'
+                    }
+                  ]
+                },
+                time: Date.now()
+              }),
+              { status: 200 }
+            );
+          }
+
           return new Response(
             JSON.stringify({
               retCode: 0,
@@ -79,22 +110,13 @@ describe('scanner api integration', () => {
                 category: 'spot',
                 list: [
                   {
-                    symbol: 'BTCUSDT',
-                    lastPrice: '100',
+                    symbol: 'ASTERUSDC',
+                    lastPrice: '0.1234',
                     price24hPcnt: '0.01',
-                    highPrice24h: '101',
-                    lowPrice24h: '95',
-                    volume24h: '100000',
-                    turnover24h: '2000000'
-                  },
-                  {
-                    symbol: 'ETHUSDT',
-                    lastPrice: '50',
-                    price24hPcnt: '0.005',
-                    highPrice24h: '51',
-                    lowPrice24h: '47',
-                    volume24h: '100000',
-                    turnover24h: '1500000'
+                    highPrice24h: '0.1290',
+                    lowPrice24h: '0.1180',
+                    volume24h: '200000',
+                    turnover24h: '5000000'
                   }
                 ]
               },
@@ -105,15 +127,12 @@ describe('scanner api integration', () => {
         }
 
         if (url.pathname.endsWith('/v5/market/kline')) {
-          const symbol = url.searchParams.get('symbol') ?? 'BTCUSDT';
+          const symbol = url.searchParams.get('symbol') ?? 'ASTERUSDC';
           const interval = url.searchParams.get('interval') ?? '60';
           const limit = Number(url.searchParams.get('limit') ?? '100');
           const intervalMs = interval === '15' ? 15 * 60_000 : 60 * 60_000;
 
-          const list =
-            symbol === 'BTCUSDT'
-              ? makeBybitKlines({ start: 100, delta: 0.1, limit, intervalMs })
-              : makeBybitKlines({ start: 50, delta: 0.05, limit, intervalMs });
+          const list = makeBybitKlines({ start: 0.1234, delta: 0.0001, limit, intervalMs });
 
           return new Response(
             JSON.stringify({
@@ -142,13 +161,13 @@ describe('scanner api integration', () => {
   it('returns scanner candidates from mocked bybit responses', async () => {
     const config = {
       ...loadConfig(),
-      bybitBaseUrl: 'https://mock.bybit.local',
+      bybitBaseUrl: 'https://api.bybit.eu',
       analysisCandleLimit: 100,
       topCandidates: 5
     };
 
     const app = createApp({ config });
-    const response = await app.inject({ method: 'GET', url: '/api/scanner' });
+    const response = await app.inject({ method: 'GET', url: '/api/scanner?quoteCoin=USDC' });
 
     expect(response.statusCode).toBe(200);
 
@@ -160,8 +179,27 @@ describe('scanner api integration', () => {
     };
 
     expect(body.data.count).toBeGreaterThan(0);
-    expect(body.data.candidates[0]?.symbol).toBe('BTCUSDT');
+    expect(body.data.candidates[0]?.symbol).toBe('ASTERUSDC');
     expect(body.data.candidates[0]?.score).toBeGreaterThan(0);
+    expect(body.data.candidates.some((item) => item.symbol === 'ASTERUSDT')).toBe(false);
+
+    const requested = requestedUrls.map((item) => new URL(item));
+    const origins = new Set(requested.map((item) => item.origin));
+    expect(origins).toEqual(new Set(['https://api.bybit.eu']));
+
+    const instrumentsCalls = requested.filter((item) => item.pathname.endsWith('/v5/market/instruments-info'));
+    expect(instrumentsCalls.length).toBeGreaterThan(0);
+    expect(instrumentsCalls[0]?.searchParams.get('category')).toBe('spot');
+
+    const tickerCalls = requested.filter((item) => item.pathname.endsWith('/v5/market/tickers'));
+    expect(tickerCalls.some((item) => item.searchParams.get('symbol') === 'ASTERUSDC')).toBe(true);
+    expect(tickerCalls.some((item) => item.searchParams.get('symbol') === 'ASTERUSDT')).toBe(false);
+
+    const klineCalls = requested.filter((item) => item.pathname.endsWith('/v5/market/kline'));
+    expect(klineCalls.length).toBeGreaterThan(0);
+    expect(klineCalls.every((item) => item.searchParams.get('symbol') === 'ASTERUSDC')).toBe(true);
+    expect(klineCalls.some((item) => item.searchParams.get('interval') === '15')).toBe(true);
+    expect(klineCalls.some((item) => item.searchParams.get('interval') === '60')).toBe(true);
 
     await app.close();
   });

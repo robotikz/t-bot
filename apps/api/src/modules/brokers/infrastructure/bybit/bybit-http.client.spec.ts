@@ -11,6 +11,30 @@ function createResponse(body: unknown, init: { ok?: boolean; status?: number } =
 }
 
 describe('BybitHttpClient', () => {
+  it('uses the EU mainnet endpoint by default', async () => {
+    const fetchImpl = vi.fn(async (input: string | URL | Request) => {
+      void input;
+      return createResponse({
+        retCode: 0,
+        retMsg: 'OK',
+        result: { category: 'spot', list: [] },
+      });
+    });
+
+    const client = new BybitHttpClient({ fetchImpl });
+    await client.getInstrumentsInfo('spot', 'ASTERUSDC');
+
+    const firstCall = fetchImpl.mock.calls[0];
+    expect(firstCall).toBeDefined();
+
+    const url = new URL(String(firstCall![0]));
+
+    expect(url.origin).toBe('https://api.bybit.eu');
+    expect(url.pathname).toBe('/v5/market/instruments-info');
+    expect(url.searchParams.get('category')).toBe('spot');
+    expect(url.searchParams.get('symbol')).toBe('ASTERUSDC');
+  });
+
   it('performs a successful request', async () => {
     const fetchImpl = vi.fn(async () =>
       createResponse({

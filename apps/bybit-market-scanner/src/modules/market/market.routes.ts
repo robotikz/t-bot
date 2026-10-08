@@ -34,7 +34,7 @@ export function registerMarketRoutes(app: FastifyInstance, marketService: Market
 
     const [ticker, markets] = await Promise.all([
       marketService.getMarketTicker(symbol),
-      marketService.getUSDTMarkets()
+      marketService.getMarkets()
     ]);
 
     const instrument = markets.find((item) => item.symbol === symbol);

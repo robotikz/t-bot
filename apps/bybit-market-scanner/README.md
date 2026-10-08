@@ -1,11 +1,12 @@
 # Bybit Market Scanner (MVP Backend)
 
-Fastify + TypeScript backend for scanning Bybit spot USDT pairs and ranking grid-trading candidates.
+Fastify + TypeScript backend for scanning Bybit spot markets by quote coin and ranking grid-trading candidates.
 
 ## Features
 
 - Fastify HTTP API (no DB, no NestJS)
 - Bybit v5 public market endpoints
+- Configurable Bybit API base URL (`BYBIT_API_BASE_URL`, defaults to `https://api.bybit.eu`)
 - Market data normalization and validation
 - Analysis engine:
   - range

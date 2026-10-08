@@ -13,10 +13,15 @@ export class BrokerRegistryService implements OnModuleInit {
 
   onModuleInit() {
     if (this.configService.getBoolean('BYBIT_ENABLED', false)) {
+      const bybitBaseUrl = this.configService.getString(
+        'BYBIT_API_BASE_URL',
+        this.configService.getString('BYBIT_BASE_URL', ''),
+      );
+
       this.brokerManager.register(
         new BybitBrokerAdapter({
           testnet: this.configService.getBoolean('BYBIT_TESTNET', false),
-          baseUrl: this.configService.getString('BYBIT_BASE_URL', ''),
+          baseUrl: bybitBaseUrl,
           timeoutMs: this.configService.getNumber('BYBIT_TIMEOUT_MS', 10000),
           apiKey: this.configService.getString('BYBIT_API_KEY', ''),
           apiSecret: this.configService.getString('BYBIT_API_SECRET', ''),

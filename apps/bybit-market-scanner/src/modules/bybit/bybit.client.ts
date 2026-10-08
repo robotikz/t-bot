@@ -1,5 +1,6 @@
 import { ExternalServiceError } from '../../shared/errors/app-error.js';
 import { MemoryCache } from '../../shared/utils/cache.js';
+import { logger } from '../../shared/utils/logger.js';
 import type { AppConfig } from '../../config/config.js';
 import type {
   BybitInstrumentsResult,
@@ -18,8 +19,11 @@ interface RequestOptions {
 
 export class BybitClient {
   private readonly cache = new MemoryCache<unknown>();
+  private readonly baseUrl: string;
 
-  constructor(private readonly config: AppConfig) {}
+  constructor(private readonly config: AppConfig) {
+    this.baseUrl = this.normalizeBaseUrl(config.bybitBaseUrl);
+  }
 
   async getSpotInstruments(): Promise<BybitInstrument[]> {
     const cacheKey = 'spot:instruments';
@@ -32,6 +36,19 @@ export class BybitClient {
 
     const list = response.result.list;
     this.cache.set(cacheKey, list, this.config.instrumentsCacheTtlMs);
+
+    const trading = list.filter((item) => item.status === 'Trading');
+    const usdcInstruments = trading.filter((item) => item.quoteCoin?.toUpperCase() === 'USDC').length;
+    const usdtInstruments = trading.filter((item) => item.quoteCoin?.toUpperCase() === 'USDT').length;
+
+    logger.info('bybit spot instruments loaded', {
+      bybitApiBaseUrl: this.baseUrl,
+      spotInstrumentsLoaded: list.length,
+      tradingInstrumentsLoaded: trading.length,
+      usdcInstruments,
+      usdtInstruments
+    });
+
     return list;
   }
 
@@ -44,6 +61,15 @@ export class BybitClient {
     const list = response.result.list;
     this.cache.set(cacheKey, list, this.config.tickersCacheTtlMs);
     return list;
+  }
+
+  async getSpotTicker(symbol: string): Promise<BybitTicker | undefined> {
+    const response = await this.request<BybitTickersResult>('/v5/market/tickers', {
+      category: 'spot',
+      symbol
+    });
+
+    return response.result.list.find((item) => item.symbol === symbol);
   }
 
   async getKlines(symbol: string, interval: string, limit: number): Promise<BybitKline[]> {
@@ -75,8 +101,10 @@ export class BybitClient {
 
     for (let attempt = 0; attempt <= retries; attempt += 1) {
       try {
-        const params = new URLSearchParams(query);
-        const url = `${this.config.bybitBaseUrl}${path}?${params.toString()}`;
+        const url = new URL(path, this.baseUrl);
+        for (const [key, value] of Object.entries(query)) {
+          url.searchParams.set(key, value);
+        }
 
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -124,5 +152,14 @@ export class BybitClient {
     }
 
     throw new ExternalServiceError('Failed to reach Bybit', 'BYBIT_UNAVAILABLE', 502);
+  }
+
+  private normalizeBaseUrl(baseUrl: string): string {
+    const trimmed = baseUrl.trim();
+    if (!trimmed) {
+      return 'https://api.bybit.eu/';
+    }
+
+    return trimmed.endsWith('/') ? trimmed : `${trimmed}/`;
   }
 }

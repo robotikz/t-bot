@@ -10,6 +10,7 @@ export type AppConfigKey =
   | 'FRONTEND_URL'
   | 'BYBIT_ENABLED'
   | 'BYBIT_TESTNET'
+  | 'BYBIT_API_BASE_URL'
   | 'BYBIT_BASE_URL'
   | 'BYBIT_TIMEOUT_MS'
   | 'BYBIT_API_KEY'

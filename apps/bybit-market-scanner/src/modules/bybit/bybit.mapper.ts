@@ -10,11 +10,24 @@ export function timeframeToBybitInterval(timeframe: Timeframe): string {
 }
 
 export function mapBybitInstrument(instrument: BybitInstrument): MarketInstrument {
+  const lotSizeFilter = instrument.lotSizeFilter;
+  const priceFilter = instrument.priceFilter;
+  const minOrderQty = instrument.minOrderQty ?? lotSizeFilter?.minOrderQty;
+  const minOrderAmt = instrument.minOrderAmt ?? lotSizeFilter?.minOrderAmt;
+  const tickSize = instrument.tickSize ?? priceFilter?.tickSize;
+
   return {
     symbol: instrument.symbol,
     baseCoin: instrument.baseCoin,
     quoteCoin: instrument.quoteCoin,
-    status: instrument.status
+    status: instrument.status,
+    ...(lotSizeFilter ? { lotSizeFilter } : {}),
+    ...(priceFilter ? { priceFilter } : {}),
+    ...(minOrderQty ? { minOrderQty } : {}),
+    ...(minOrderAmt ? { minOrderAmt } : {}),
+    ...(tickSize ? { tickSize } : {}),
+    ...(instrument.basePrecision ? { basePrecision: instrument.basePrecision } : {}),
+    ...(instrument.quotePrecision ? { quotePrecision: instrument.quotePrecision } : {})
   };
 }
 

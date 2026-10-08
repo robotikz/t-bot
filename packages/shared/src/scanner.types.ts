@@ -16,6 +16,19 @@ export interface MarketInstrument {
   baseCoin: string;
   quoteCoin: string;
   status: string;
+  lotSizeFilter?: {
+    minOrderQty?: string;
+    minOrderAmt?: string;
+    qtyStep?: string;
+  };
+  priceFilter?: {
+    tickSize?: string;
+  };
+  minOrderQty?: string;
+  minOrderAmt?: string;
+  tickSize?: string;
+  basePrecision?: string;
+  quotePrecision?: string;
 }
 
 export interface MarketTicker {

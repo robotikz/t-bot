@@ -77,7 +77,8 @@ export function loadConfig(): AppConfig {
 
   return {
     port: readNumber('PORT', 3000),
-    bybitBaseUrl: process.env.BYBIT_BASE_URL ?? 'https://api.bybit.com',
+    bybitBaseUrl:
+      process.env.BYBIT_API_BASE_URL ?? process.env.BYBIT_BASE_URL ?? 'https://api.bybit.eu',
     analysisCandleLimit: clampNumber(readNumber('ANALYSIS_CANDLE_LIMIT', 200), 100, 200),
     minTurnover24hUsdt,
     max24hDropPercent: readNumber('MAX_24H_DROP_PERCENT', 8),

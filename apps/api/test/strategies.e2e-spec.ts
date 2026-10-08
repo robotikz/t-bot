@@ -18,7 +18,8 @@ describe('Strategies (e2e)', () => {
 
   beforeAll(() => {
     process.env.BYBIT_ENABLED = 'true';
-    process.env.BYBIT_BASE_URL = 'https://api.bybit.com';
+    process.env.BYBIT_API_BASE_URL = 'https://api.bybit.eu';
+    process.env.BYBIT_BASE_URL = 'https://api.bybit.eu';
     process.env.BYBIT_TIMEOUT_MS = '10000';
     process.env.TRADING212_ENABLED = 'true';
     process.env.TRADING212_API_KEY = 'test-key';
@@ -57,6 +58,7 @@ describe('Strategies (e2e)', () => {
         }
 
         if (url.pathname.endsWith('/v5/market/instruments-info')) {
+          expect(url.origin).toBe('https://api.bybit.eu');
           return createResponse({
             retCode: 0,
             retMsg: 'OK',
@@ -75,6 +77,7 @@ describe('Strategies (e2e)', () => {
         }
 
         if (url.pathname.endsWith('/v5/market/kline')) {
+          expect(url.origin).toBe('https://api.bybit.eu');
           return createResponse({
             retCode: 0,
             retMsg: 'OK',

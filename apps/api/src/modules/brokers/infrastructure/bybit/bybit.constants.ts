@@ -2,7 +2,7 @@ import { Timeframe } from '../../../../common/enums.js';
 import type { BybitPublicTimeframe } from '../../dto/list-bybit-candles.dto.js';
 
 export const BYBIT_MARKET_CATEGORY = 'spot' as const;
-export const BYBIT_MAINNET_BASE_URL = 'https://api.bybit.com';
+export const BYBIT_MAINNET_BASE_URL = 'https://api.bybit.eu';
 export const BYBIT_TESTNET_BASE_URL = 'https://api-testnet.bybit.com';
 export const BYBIT_DEFAULT_TIMEOUT_MS = 10_000;
 

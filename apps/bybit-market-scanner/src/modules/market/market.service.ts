@@ -23,6 +23,14 @@ export class MarketService {
     return this.getMarketsByQuoteCoin('USDC');
   }
 
+  async getMarkets(): Promise<MarketInstrument[]> {
+    const instruments = await this.bybitClient.getSpotInstruments();
+
+    return instruments
+      .map(mapBybitInstrument)
+      .filter((item) => item.status === 'Trading');
+  }
+
   async getMarketsByQuoteCoin(quoteCoin: string): Promise<MarketInstrument[]> {
     const instruments = await this.bybitClient.getSpotInstruments();
     const normalizedQuoteCoin = quoteCoin.toUpperCase();
@@ -30,7 +38,7 @@ export class MarketService {
     return instruments
       .map(mapBybitInstrument)
       .filter(
-        (item) => item.quoteCoin.toUpperCase() === normalizedQuoteCoin
+        (item) => item.status === 'Trading' && item.quoteCoin.toUpperCase() === normalizedQuoteCoin
       );
   }
 
@@ -53,6 +61,12 @@ export class MarketService {
   }
 
   async getMarketTicker(symbol: string): Promise<MarketTicker> {
+    const directTicker = await this.bybitClient.getSpotTicker(symbol);
+
+    if (directTicker) {
+      return mapBybitTicker(directTicker, Date.now());
+    }
+
     const tickers = await this.getTickers();
     const ticker = tickers.find((item) => item.symbol === symbol);
     if (!ticker) {
