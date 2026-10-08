@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../../prisma/prisma.service.js';
 import type { SignalHistoryRepository, SignalObservationRecord } from './signal-history.repository.js';
 
 @Injectable()
@@ -93,7 +93,7 @@ export class PrismaSignalHistoryRepository implements SignalHistoryRepository {
     });
 
     return items.map((rec) => ({
-      id: rec.id,
+        id: rec.id,
       symbol: rec.symbol,
       sourceSymbol: rec.sourceSymbol,
       targetSymbol: rec.targetSymbol,

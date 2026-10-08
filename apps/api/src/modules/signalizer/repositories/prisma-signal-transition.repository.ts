@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../../prisma/prisma.service.js';
 import type { SignalTransitionRepository, SignalTransitionRecord } from './signal-transition.repository.js';
 
 @Injectable()

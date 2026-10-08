@@ -5,7 +5,7 @@ export class SignalHistoryClient {
     return `${this.baseUrl.replace(/\/$/, '')}${path}`;
   }
 
-  async persistObservation(observation: any) {
+  async persistObservation(observation: unknown): Promise<Record<string, unknown>> {
     const res = await fetch(this.url('/api/signalizer/observations'), {
       method: 'POST',
       headers: { 'content-type': 'application/json' },

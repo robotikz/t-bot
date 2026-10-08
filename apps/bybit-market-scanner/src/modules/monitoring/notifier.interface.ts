@@ -2,8 +2,8 @@ export interface SignalizerEvent {
   symbol: string;
   fromState?: string | null;
   toState: string;
-  observation: any;
-  transition?: any;
+  observation: Record<string, unknown>;
+  transition?: Record<string, unknown>;
 }
 
 export interface SignalizerNotifier {

@@ -1,11 +1,11 @@
 import type { SignalizerService } from '../signalizer/signalizer.service.js';
 import { ConsoleNotifier } from './console.notifier.js';
 import { SignalHistoryClient } from './signal-history.client.js';
-import type { SignalizerNotifier } from './notifier.interface.js';
+import type { SignalizerNotifier, SignalizerEvent } from './notifier.interface.js';
 
 export class MonitoringService {
   private readonly notifier: SignalizerNotifier;
-  private timer: NodeJS.Timeout | null = null;
+  private timer: ReturnType<typeof globalThis.setInterval> | null = null;
 
   constructor(
     private readonly signalizer: SignalizerService,
@@ -25,20 +25,29 @@ export class MonitoringService {
           try {
             const persisted = await client.persistObservation(sig);
             // persisted expected shape: { observation, transitionCreated, transition }
-            if (persisted?.transitionCreated) {
-              const event = {
-                symbol: sig.symbol,
-                fromState: persisted.transition?.fromState ?? null,
-                toState: persisted.transition?.toState ?? sig.state,
-                observation: persisted.observation,
-                transition: persisted.transition
+            const persistedRec = persisted as Record<string, unknown>;
+            const transitionCreated = Boolean(persistedRec['transitionCreated']);
+            if (transitionCreated) {
+              const transitionRec = persistedRec['transition'] as Record<string, unknown> | undefined;
+              const observationRec = persistedRec['observation'] as Record<string, unknown> | undefined;
+              const symbol = String(sig.symbol ?? '');
+              const fromState = transitionRec && typeof transitionRec['fromState'] === 'string' ? (transitionRec['fromState'] as string) : null;
+              const toState = transitionRec && typeof transitionRec['toState'] === 'string' ? (transitionRec['toState'] as string) : String(sig.state ?? '');
+
+              const event: SignalizerEvent = {
+                symbol,
+                fromState,
+                toState,
+                observation: observationRec ?? {},
+                transition: transitionRec ?? {}
               };
-              await this.notifier.notify(event as any);
+
+              await this.notifier.notify(event);
             }
           } catch (err) {
             // log and continue
             // eslint-disable-next-line no-console
-            console.error('Failed to persist/notify for', sig.symbol, err instanceof Error ? err.message : err);
+            console.error('Failed to persist/notify for', String(sig.symbol ?? ''), err instanceof Error ? err.message : err);
           }
         }
       } catch (err) {
@@ -49,12 +58,12 @@ export class MonitoringService {
 
     // run immediately then schedule
     run().catch(() => {});
-    this.timer = setInterval(() => run().catch(() => {}), intervalMinutes * 60 * 1000);
+    this.timer = globalThis.setInterval(() => run().catch(() => {}), intervalMinutes * 60 * 1000);
   }
 
   stop() {
     if (this.timer) {
-      clearInterval(this.timer);
+      globalThis.clearInterval(this.timer as ReturnType<typeof globalThis.setInterval>);
       this.timer = null;
     }
   }

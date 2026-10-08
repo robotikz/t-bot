@@ -9,21 +9,35 @@ export class ConsoleNotifier implements SignalizerNotifier {
     console.log(event.symbol);
     console.log('Previous state:', prev);
     console.log('Current state:', event.toState);
-    if (event.observation?.setup) {
-      const s = event.observation.setup;
-      console.log('Entry:', `${s.entryLow}–${s.entryHigh}`);
-      console.log('Grid:', `${s.gridLow}–${s.gridHigh}`);
-      console.log('Grids:', s.gridCount);
-      console.log('SL:', s.stopLoss);
-      console.log('TP:', s.takeProfit);
-      console.log('Investment:', s.investment);
-      console.log('Risk:', s.risk);
-      console.log('Confidence:', event.observation.confidence ?? s.confidence ?? 0);
+    const obs = event.observation ?? {};
+    const setup = (obs as Record<string, unknown>)['setup'] as Record<string, unknown> | undefined;
+    if (setup) {
+      const entryLow = Number(setup['entryLow']);
+      const entryHigh = Number(setup['entryHigh']);
+      const gridLow = Number(setup['gridLow']);
+      const gridHigh = Number(setup['gridHigh']);
+      const gridCount = Number(setup['gridCount']);
+      const stopLoss = Number(setup['stopLoss']);
+      const takeProfit = Number(setup['takeProfit']);
+      const investment = Number(setup['investment']);
+      const risk = String(setup['risk'] ?? '');
+      const confidence = Number((obs as Record<string, unknown>)['confidence'] ?? setup['confidence'] ?? 0);
+
+      console.log('Entry:', `${entryLow}–${entryHigh}`);
+      console.log('Grid:', `${gridLow}–${gridHigh}`);
+      console.log('Grids:', gridCount);
+      console.log('SL:', stopLoss);
+      console.log('TP:', takeProfit);
+      console.log('Investment:', investment);
+      console.log('Risk:', risk);
+      console.log('Confidence:', confidence);
     }
-    if (event.observation?.pairValidation) {
-      console.log('USDC:', event.observation.pairValidation.status === 'USDC_READY' ? '✅' : '❌');
+    const pairValidation = (obs as Record<string, unknown>)['pairValidation'] as Record<string, unknown> | undefined;
+    if (pairValidation) {
+      console.log('USDC:', String(pairValidation['status']) === 'USDC_READY' ? '✅' : '❌');
     }
-    if (event.observation?.reasons) console.log('Reason:', (event.observation.reasons || []).join('; '));
+    const reasons = (obs as Record<string, unknown>)['reasons'] as string[] | undefined;
+    if (reasons) console.log('Reason:', (reasons || []).join('; '));
     console.log('---');
   }
 }
