@@ -102,3 +102,42 @@ model Trade {
   fee        Float
   executedAt DateTime
 }
+
+model SignalObservation {
+  id            String   @id @default(cuid())
+  symbol        String
+  sourceSymbol  String
+  targetSymbol  String
+  observedAt    DateTime @default(now())
+  previousState String?
+  currentState  String
+  confidence    Float?
+  risk          String?
+  setupSnapshot Json
+  aiDecision    String?
+  reasons       Json
+  rejections    Json
+  usdcAvailable Boolean
+  pairValidation Json
+  currentPrice  Float
+  timeframeInfo Json
+
+  createdAt DateTime @default(now())
+
+  @@index([symbol])
+  @@index([observedAt])
+}
+
+model SignalTransition {
+  id            String   @id @default(cuid())
+  symbol        String
+  fromState     String?
+  toState       String
+  observedAt    DateTime @default(now())
+  observationId String
+
+  createdAt DateTime @default(now())
+
+  @@index([symbol])
+  @@index([observedAt])
+}

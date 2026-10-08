@@ -11,6 +11,12 @@ import { SignalizerService } from './modules/signalizer/signalizer.service.js';
 import { registerSignalizerRoutes } from './modules/signalizer/signalizer.routes.js';
 import { InMemorySignalStateStore } from './modules/signalizer/state/signal-state.store.js';
 import { handleHttpError } from './shared/http/error-handler.js';
+import { MonitoringService } from './modules/monitoring/monitoring.service.js';
+
+// Monitoring config via env
+const MONITOR_ENABLED = process.env.MONITOR_ENABLED === 'true';
+const SIGNALIZER_API_URL = process.env.SIGNALIZER_API_URL ?? 'http://localhost:3000';
+const MONITOR_INTERVAL_MINUTES = process.env.MONITOR_INTERVAL_MINUTES ? Number(process.env.MONITOR_INTERVAL_MINUTES) : 15;
 
 export interface AppServices {
   bybitClient: BybitClient;
@@ -46,6 +52,16 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   registerAnalysisRoutes(app, analysisService);
   registerScannerRoutes(app, scannerService);
   registerSignalizerRoutes(app, signalizerService);
+
+  if (MONITOR_ENABLED) {
+    try {
+      const monitoring = new MonitoringService(signalizerService, SIGNALIZER_API_URL);
+      monitoring.start(MONITOR_INTERVAL_MINUTES);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to start monitoring', err);
+    }
+  }
 
   return app;
 }
