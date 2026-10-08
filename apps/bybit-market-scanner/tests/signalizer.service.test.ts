@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { loadConfig } from '../src/config/config.js';
 import { SignalizerService } from '../src/modules/signalizer/signalizer.service.js';
 import { InMemorySignalStateStore } from '../src/modules/signalizer/state/signal-state.store.js';
 import type { MarketService } from '../src/modules/market/market.service.js';
@@ -82,7 +83,8 @@ function makeCandidate(
 
 describe('signalizer.service', () => {
   const marketService = {
-    getMarketsByQuoteCoin: vi.fn()
+    getMarketsByQuoteCoin: vi.fn(),
+    getCandles: vi.fn()
   } as unknown as MarketService;
 
   const scannerService = {
@@ -95,11 +97,45 @@ describe('signalizer.service', () => {
 
   it('maps USDT analysis to USDC bot pair and tracks state changes', async () => {
     const store = new InMemorySignalStateStore();
-    const service = new SignalizerService(marketService, scannerService, store);
+    const service = new SignalizerService(marketService, scannerService, store, loadConfig());
 
     vi.mocked(marketService.getMarketsByQuoteCoin).mockResolvedValue([
       { symbol: 'SOLUSDC', baseCoin: 'SOL', quoteCoin: 'USDC', status: 'Trading' }
     ]);
+
+    const closes = [
+      ...Array.from({ length: 102 }, () => 100),
+      99.2,
+      98.9,
+      98.4,
+      98,
+      97.8,
+      97.6,
+      97.5,
+      97.4,
+      97.35,
+      97.3,
+      97.35,
+      97.4,
+      97.45,
+      97.5,
+      97.55,
+      97.6,
+      97.65
+    ];
+
+    vi.mocked(marketService.getCandles).mockResolvedValue(
+      closes.map((close, index) => ({
+        timestamp: Date.now() - (closes.length - index) * 15 * 60_000,
+        open: close,
+        high: close * 1.002,
+        low: close * 0.998,
+        close,
+        volume: 1_000,
+        turnover: 100_000,
+        isClosed: true
+      }))
+    );
 
     vi.mocked(scannerService.scan)
       .mockResolvedValueOnce({
@@ -138,7 +174,7 @@ describe('signalizer.service', () => {
 
   it('skips overlapping scans', async () => {
     const store = new InMemorySignalStateStore();
-    const service = new SignalizerService(marketService, scannerService, store);
+    const service = new SignalizerService(marketService, scannerService, store, loadConfig());
 
     vi.mocked(marketService.getMarketsByQuoteCoin).mockResolvedValue([]);
 

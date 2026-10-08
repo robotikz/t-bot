@@ -37,7 +37,7 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
   const signalStateStore = new InMemorySignalStateStore();
   const signalizerService =
     options.services?.signalizerService ??
-    new SignalizerService(marketService, scannerService, signalStateStore);
+    new SignalizerService(marketService, scannerService, signalStateStore, config);
 
   app.setErrorHandler(handleHttpError);
 

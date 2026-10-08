@@ -5,6 +5,7 @@ import { ValidationError } from '../../shared/errors/app-error.js';
 
 export function timeframeToBybitInterval(timeframe: Timeframe): string {
   if (timeframe === '15m') return '15';
+  if (timeframe === '4h') return '240';
   return '60';
 }
 
@@ -51,6 +52,7 @@ export function mapBybitTicker(ticker: BybitTicker, timestamp: number): MarketTi
 }
 
 function timeframeMs(timeframe: Timeframe): number {
+  if (timeframe === '4h') return 4 * 60 * 60_000;
   return timeframe === '15m' ? 15 * 60_000 : 60 * 60_000;
 }
 

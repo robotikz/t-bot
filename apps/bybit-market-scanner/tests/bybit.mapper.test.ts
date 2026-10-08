@@ -10,6 +10,7 @@ describe('bybit.mapper', () => {
   it('maps intervals', () => {
     expect(timeframeToBybitInterval('15m')).toBe('15');
     expect(timeframeToBybitInterval('1h')).toBe('60');
+    expect(timeframeToBybitInterval('4h')).toBe('240');
   });
 
   it('omits optional bid/ask when not finite', () => {

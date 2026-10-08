@@ -7,6 +7,15 @@ function readNumber(name: string, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function readBoolean(name: string, fallback: boolean): boolean {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const normalized = raw.trim().toLowerCase();
+  if (normalized === 'true') return true;
+  if (normalized === 'false') return false;
+  return fallback;
+}
+
 function clampNumber(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
@@ -33,6 +42,24 @@ export interface AppConfig {
   candlesCacheTtlMs: number;
   scannerWeights: ScannerWeights;
   liquidityTiers: [number, number, number, number];
+  signalizerMaxConcurrentSetups: number;
+  gridSupportBufferPercent: number;
+  gridResistanceBufferPercent: number;
+  gridStopLossBufferPercent: number;
+  gridTakeProfitBufferPercent: number;
+  gridEntryZoneBufferPercent: number;
+  gridEntryMaxPositionInRangePercent: number;
+  gridMinDistanceToResistancePercent: number;
+  gridMinDistanceToInvalidationPercent: number;
+  gridTrailingStopPercent: number;
+  gridTrailingUp: boolean;
+  gridDefaultInvestment: number;
+  gridMinInvestment: number;
+  gridMaxInvestment: number;
+  gridRangeFor6GridsMaxPercent: number;
+  gridRangeFor8GridsMaxPercent: number;
+  gridRangeFor10GridsMaxPercent: number;
+  gridMaxAutoGrids: number;
 }
 
 export function loadConfig(): AppConfig {
@@ -76,6 +103,27 @@ export function loadConfig(): AppConfig {
       readNumber('LIQUIDITY_TIER_2', 10_000_000),
       readNumber('LIQUIDITY_TIER_3', 5_000_000),
       readNumber('LIQUIDITY_TIER_4', 1_000_000)
-    ]
+    ],
+    signalizerMaxConcurrentSetups: Math.max(
+      1,
+      Math.floor(readNumber('SIGNALIZER_MAX_CONCURRENT_SETUPS', 5))
+    ),
+    gridSupportBufferPercent: readNumber('GRID_SUPPORT_BUFFER_PERCENT', 0.4),
+    gridResistanceBufferPercent: readNumber('GRID_RESISTANCE_BUFFER_PERCENT', 0.4),
+    gridStopLossBufferPercent: readNumber('GRID_STOP_LOSS_BUFFER_PERCENT', 1),
+    gridTakeProfitBufferPercent: readNumber('GRID_TAKE_PROFIT_BUFFER_PERCENT', 0.3),
+    gridEntryZoneBufferPercent: readNumber('GRID_ENTRY_ZONE_BUFFER_PERCENT', 0.6),
+    gridEntryMaxPositionInRangePercent: readNumber('GRID_ENTRY_MAX_POSITION_IN_RANGE_PERCENT', 80),
+    gridMinDistanceToResistancePercent: readNumber('GRID_MIN_DISTANCE_TO_RESISTANCE_PERCENT', 1.8),
+    gridMinDistanceToInvalidationPercent: readNumber('GRID_MIN_DISTANCE_TO_INVALIDATION_PERCENT', 1.2),
+    gridTrailingStopPercent: readNumber('GRID_TRAILING_STOP_PERCENT', 4),
+    gridTrailingUp: readBoolean('GRID_TRAILING_UP', false),
+    gridDefaultInvestment: readNumber('GRID_DEFAULT_INVESTMENT', 300),
+    gridMinInvestment: readNumber('GRID_MIN_INVESTMENT', 200),
+    gridMaxInvestment: readNumber('GRID_MAX_INVESTMENT', 400),
+    gridRangeFor6GridsMaxPercent: readNumber('GRID_RANGE_FOR_6_GRIDS_MAX_PERCENT', 5),
+    gridRangeFor8GridsMaxPercent: readNumber('GRID_RANGE_FOR_8_GRIDS_MAX_PERCENT', 10),
+    gridRangeFor10GridsMaxPercent: readNumber('GRID_RANGE_FOR_10_GRIDS_MAX_PERCENT', 20),
+    gridMaxAutoGrids: Math.max(6, Math.floor(readNumber('GRID_MAX_AUTO_GRIDS', 10)))
   };
 }

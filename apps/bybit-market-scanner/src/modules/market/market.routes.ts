@@ -6,6 +6,7 @@ import type { Timeframe } from './market.types.js';
 function parseTimeframe(input: string | undefined): Timeframe {
   if (!input || input === '1h') return '1h';
   if (input === '15m') return '15m';
+  if (input === '4h') return '4h';
   throw new ValidationError('INVALID_TIMEFRAME', `Unsupported timeframe: ${input}`);
 }
 

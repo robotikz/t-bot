@@ -1,4 +1,4 @@
-export type ScannerTimeframe = '15m' | '1h';
+export type ScannerTimeframe = '15m' | '1h' | '4h';
 
 export type CandidateStatus = 'CANDIDATE' | 'WATCH' | 'REJECTED';
 

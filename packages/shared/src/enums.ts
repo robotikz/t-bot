@@ -28,6 +28,7 @@ export enum ExchangeName {
 export enum ScannerTimeframeEnum {
   M15 = '15m',
   H1 = '1h',
+  H4 = '4h',
 }
 
 export enum CandidateStatusEnum {

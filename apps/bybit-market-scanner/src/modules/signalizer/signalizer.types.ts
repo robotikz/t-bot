@@ -1,3 +1,21 @@
-import type { MarketSignal, SignalState, SignalizerScanResult } from '@trading-platform/shared';
+import type {
+	GridBotSetup,
+	GridRisk,
+	MarketSignal,
+	MarketStructureAnalysis,
+	PairValidation,
+	SignalState,
+	SignalizerScanResult,
+	TimeframeAnalysis
+} from '@trading-platform/shared';
 
-export type { MarketSignal, SignalState, SignalizerScanResult };
+export type {
+	GridBotSetup,
+	GridRisk,
+	MarketSignal,
+	MarketStructureAnalysis,
+	PairValidation,
+	SignalState,
+	SignalizerScanResult,
+	TimeframeAnalysis
+};
