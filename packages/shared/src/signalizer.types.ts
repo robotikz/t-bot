@@ -66,6 +66,36 @@ export interface PairValidation {
   status: PairValidationStatus;
 }
 
+export type AiSignalState = 'READY' | 'WATCH' | 'NO_TRADE' | 'MANUAL_CHECK_REQUIRED';
+
+export type AiDecision = 'RUN_GRID' | 'WAIT' | 'NO_EXECUTION' | 'MANUAL_CHECK';
+
+export interface AiSetupSnapshot {
+  entryLow: number;
+  entryHigh: number;
+  gridLow: number;
+  gridHigh: number;
+  gridCount: number;
+  stopLoss: number;
+  takeProfit: number;
+  investment: number;
+  trailingStopPercent: number;
+  trailingUp: boolean;
+}
+
+export interface AiAnalysisResult {
+  state: AiSignalState;
+  symbol: string;
+  targetBotPair: string;
+  decision: AiDecision;
+  setup: AiSetupSnapshot;
+  risk: GridRisk;
+  confidence: number;
+  reasons: string[];
+  warnings: string[];
+  waitingFor: string[];
+}
+
 export interface MarketSignal {
   symbol: string;
   pairAnalyzed: string;
@@ -85,6 +115,8 @@ export interface MarketSignal {
   market?: MarketStructureAnalysis;
   setup?: GridBotSetup;
   pairValidation?: PairValidation;
+  aiAnalysis?: AiAnalysisResult;
+  finalState?: AiSignalState;
 }
 
 export interface SignalizerScanResult {

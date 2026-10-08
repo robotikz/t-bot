@@ -1,4 +1,8 @@
 import type {
+	AiAnalysisResult,
+	AiDecision,
+	AiSetupSnapshot,
+	AiSignalState,
 	GridBotSetup,
 	GridRisk,
 	MarketSignal,
@@ -10,6 +14,10 @@ import type {
 } from '@trading-platform/shared';
 
 export type {
+	AiAnalysisResult,
+	AiDecision,
+	AiSetupSnapshot,
+	AiSignalState,
 	GridBotSetup,
 	GridRisk,
 	MarketSignal,

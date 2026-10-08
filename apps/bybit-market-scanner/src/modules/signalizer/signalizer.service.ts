@@ -12,6 +12,8 @@ import type { ScannerService } from '../scanner/scanner.service.js';
 import type { MarketSignal, SignalState, SignalizerScanResult } from './signalizer.types.js';
 import type { SignalStateStore } from './state/signal-state.store.js';
 import { GridSetupGenerator } from './setup/grid-setup.generator.js';
+import type { AiAnalyzeRequest, AiAnalysisResult } from './ai/ai-analysis.types.js';
+import { SignalizerAiService } from './ai/signalizer-ai.service.js';
 
 function hasAnyReason(reasons: string[], values: string[]): boolean {
   return values.some((value) => reasons.includes(value));
@@ -85,13 +87,17 @@ function getBaseCoin(symbol: string): string {
 export class SignalizerService {
   private running = false;
   private readonly gridSetupGenerator = new GridSetupGenerator();
+  private readonly aiService: SignalizerAiService;
 
   constructor(
     private readonly marketService: MarketService,
     private readonly scannerService: ScannerService,
     private readonly stateStore: SignalStateStore,
-    private readonly config: AppConfig
-  ) {}
+    private readonly config: AppConfig,
+    aiService?: SignalizerAiService
+  ) {
+    this.aiService = aiService ?? new SignalizerAiService(config);
+  }
 
   isRunning(): boolean {
     return this.running;
@@ -131,17 +137,120 @@ export class SignalizerService {
         }
       );
 
+      const enrichedSignals = this.aiService.isEnabled()
+        ? await this.applyAiAnalysisToCandidates(signals)
+        : signals;
+
       return {
         generatedAt,
         isRunning: false,
         skipped: false,
-        count: signals.length,
-        stateChangedCount: signals.filter((signal) => signal.stateChanged).length,
-        signals
+        count: enrichedSignals.length,
+        stateChangedCount: enrichedSignals.filter((signal) => signal.stateChanged).length,
+        signals: enrichedSignals
       };
     } finally {
       this.running = false;
     }
+  }
+
+  async analyze(request: AiAnalyzeRequest): Promise<AiAnalysisResult> {
+    if (request.signal) {
+      return this.aiService.analyzeSignal(request.signal);
+    }
+
+    if (!request.symbol) {
+      return {
+        state: 'NO_TRADE',
+        symbol: 'UNKNOWN',
+        targetBotPair: 'UNKNOWN',
+        decision: 'NO_EXECUTION',
+        setup: {
+          entryLow: 0,
+          entryHigh: 0,
+          gridLow: 0,
+          gridHigh: 0,
+          gridCount: 0,
+          stopLoss: 0,
+          takeProfit: 0,
+          investment: 0,
+          trailingStopPercent: 0,
+          trailingUp: false
+        },
+        risk: 'HIGH',
+        confidence: 0,
+        reasons: ['SYMBOL_REQUIRED'],
+        warnings: [],
+        waitingFor: ['SYMBOL']
+      };
+    }
+
+    const scanResult = await this.scan();
+    const normalized = request.symbol.trim().toUpperCase();
+    const signal = scanResult.signals.find((item) => item.symbol === normalized);
+
+    if (!signal) {
+      const base = getBaseCoin(normalized);
+      return {
+        state: 'NO_TRADE',
+        symbol: normalized,
+        targetBotPair: `${base}USDC`,
+        decision: 'NO_EXECUTION',
+        setup: {
+          entryLow: 0,
+          entryHigh: 0,
+          gridLow: 0,
+          gridHigh: 0,
+          gridCount: 0,
+          stopLoss: 0,
+          takeProfit: 0,
+          investment: 0,
+          trailingStopPercent: 0,
+          trailingUp: false
+        },
+        risk: 'HIGH',
+        confidence: 0,
+        reasons: ['SYMBOL_NOT_FOUND_IN_SCAN'],
+        warnings: [],
+        waitingFor: []
+      };
+    }
+
+    return this.aiService.analyzeSignal(signal);
+  }
+
+  private async applyAiAnalysisToCandidates(signals: MarketSignal[]): Promise<MarketSignal[]> {
+    const eligible = signals
+      .filter((signal) => signal.state === 'READY' || signal.state === 'SETUP_FORMING')
+      .sort((a, b) => b.score - a.score)
+      .slice(0, this.aiService.maxCandidates());
+
+    if (eligible.length === 0) {
+      return signals;
+    }
+
+    const analyzed = await mapWithConcurrency(eligible, 1, async (signal) => {
+      const aiAnalysis = await this.aiService.analyzeSignal(signal);
+      return {
+        symbol: signal.symbol,
+        aiAnalysis
+      };
+    });
+
+    const bySymbol = new Map<string, AiAnalysisResult>(
+      analyzed.map((item) => [item.symbol, item.aiAnalysis])
+    );
+
+    return signals.map((signal) => {
+      const aiAnalysis = bySymbol.get(signal.symbol);
+      if (!aiAnalysis) return signal;
+
+      return {
+        ...signal,
+        aiAnalysis,
+        finalState: aiAnalysis.state
+      };
+    });
   }
 
   private async buildAnalysis4h(candidate: ScannerCandidate): Promise<MarketAnalysis> {

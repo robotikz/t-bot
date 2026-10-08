@@ -60,6 +60,13 @@ export interface AppConfig {
   gridRangeFor8GridsMaxPercent: number;
   gridRangeFor10GridsMaxPercent: number;
   gridMaxAutoGrids: number;
+  aiEnabled: boolean;
+  aiModel: string;
+  aiTimeoutMs: number;
+  aiMaxRetries: number;
+  aiMaxCandidates: number;
+  aiApiUrl: string | undefined;
+  aiApiKey: string | undefined;
 }
 
 export function loadConfig(): AppConfig {
@@ -124,6 +131,13 @@ export function loadConfig(): AppConfig {
     gridRangeFor6GridsMaxPercent: readNumber('GRID_RANGE_FOR_6_GRIDS_MAX_PERCENT', 5),
     gridRangeFor8GridsMaxPercent: readNumber('GRID_RANGE_FOR_8_GRIDS_MAX_PERCENT', 10),
     gridRangeFor10GridsMaxPercent: readNumber('GRID_RANGE_FOR_10_GRIDS_MAX_PERCENT', 20),
-    gridMaxAutoGrids: Math.max(6, Math.floor(readNumber('GRID_MAX_AUTO_GRIDS', 10)))
+    gridMaxAutoGrids: Math.max(6, Math.floor(readNumber('GRID_MAX_AUTO_GRIDS', 10))),
+    aiEnabled: readBoolean('AI_ENABLED', false),
+    aiModel: process.env.AI_MODEL ?? '',
+    aiTimeoutMs: Math.max(500, Math.floor(readNumber('AI_TIMEOUT_MS', 8_000))),
+    aiMaxRetries: Math.max(0, Math.floor(readNumber('AI_MAX_RETRIES', 1))),
+    aiMaxCandidates: Math.max(1, Math.floor(readNumber('AI_MAX_CANDIDATES', 5))),
+    aiApiUrl: process.env.AI_API_URL,
+    aiApiKey: process.env.AI_API_KEY
   };
 }

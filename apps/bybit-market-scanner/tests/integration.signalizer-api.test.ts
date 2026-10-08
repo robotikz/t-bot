@@ -51,4 +51,51 @@ describe('signalizer api integration', () => {
 
     await app.close();
   });
+
+  it('returns ai analysis from analyze endpoint', async () => {
+    const signalizerService = {
+      scan: vi.fn(),
+      analyze: vi.fn().mockResolvedValue({
+        state: 'WATCH',
+        symbol: 'SOLUSDT',
+        targetBotPair: 'SOLUSDC',
+        decision: 'WAIT',
+        setup: {
+          entryLow: 129,
+          entryHigh: 131,
+          gridLow: 126,
+          gridHigh: 135,
+          gridCount: 8,
+          stopLoss: 124,
+          takeProfit: 134,
+          investment: 300,
+          trailingStopPercent: 4,
+          trailingUp: false
+        },
+        risk: 'MEDIUM',
+        confidence: 75,
+        reasons: ['waiting for 15m confirmation'],
+        warnings: [],
+        waitingFor: ['15M_CONFIRMATION']
+      })
+    } as unknown as SignalizerService;
+
+    const app = createApp({
+      config: loadConfig(),
+      services: { signalizerService }
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/signalizer/analyze',
+      payload: { symbol: 'SOLUSDT' }
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as { data: { state: string; symbol: string } };
+    expect(body.data.state).toBe('WATCH');
+    expect(body.data.symbol).toBe('SOLUSDT');
+
+    await app.close();
+  });
 });
