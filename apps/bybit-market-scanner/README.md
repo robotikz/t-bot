@@ -44,3 +44,10 @@ Fastify + TypeScript backend for scanning Bybit spot markets by quote coin and r
 - Scanner uses only Bybit public endpoints.
 - Request retries and short in-memory caching are enabled in the Bybit client.
 - Market/ticker/candle cache TTL and scanner thresholds are configurable via environment variables.
+
+## Telegram Notifications
+
+- Enable with `TELEGRAM_ENABLED=true` and set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in your `.env`.
+- Messages are sent only for state transitions (e.g., `READY -> WATCH`, `WATCH -> READY`, `READY -> NO_TRADE`).
+- Telegram is optional; when disabled monitoring continues and `ConsoleNotifier` remains the fallback.
+- The notifier uses the Telegram Bot API `sendMessage` endpoint and respects `TELEGRAM_TIMEOUT_MS`.

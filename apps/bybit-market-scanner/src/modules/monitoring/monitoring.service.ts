@@ -46,12 +46,10 @@ export class MonitoringService {
             }
           } catch (err) {
             // log and continue
-            // eslint-disable-next-line no-console
             console.error('Failed to persist/notify for', String(sig.symbol ?? ''), err instanceof Error ? err.message : err);
           }
         }
       } catch (err) {
-        // eslint-disable-next-line no-console
         console.error('Monitoring run failed', err instanceof Error ? err.stack : err);
       }
     };

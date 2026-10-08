@@ -12,6 +12,8 @@ import { registerSignalizerRoutes } from './modules/signalizer/signalizer.routes
 import { InMemorySignalStateStore } from './modules/signalizer/state/signal-state.store.js';
 import { handleHttpError } from './shared/http/error-handler.js';
 import { MonitoringService } from './modules/monitoring/monitoring.service.js';
+import type { SignalizerNotifier } from './modules/monitoring/notifier.interface.js';
+import { TelegramNotifier } from './modules/monitoring/telegram.notifier.js';
 
 // Monitoring config via env
 const MONITOR_ENABLED = process.env.MONITOR_ENABLED === 'true';
@@ -55,10 +57,18 @@ export function createApp(options: CreateAppOptions = {}): FastifyInstance {
 
   if (MONITOR_ENABLED) {
     try {
-      const monitoring = new MonitoringService(signalizerService, SIGNALIZER_API_URL);
+      // optionally wire Telegram notifier when enabled
+      const TELEGRAM_ENABLED = process.env.TELEGRAM_ENABLED === 'true';
+      const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+      const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+      let notifier: SignalizerNotifier | undefined = undefined;
+      if (TELEGRAM_ENABLED && TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
+        notifier = new TelegramNotifier({ enabled: true, token: TELEGRAM_BOT_TOKEN, chatId: TELEGRAM_CHAT_ID });
+      }
+
+      const monitoring = new MonitoringService(signalizerService, SIGNALIZER_API_URL, notifier);
       monitoring.start(MONITOR_INTERVAL_MINUTES);
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error('Failed to start monitoring', err);
     }
   }
