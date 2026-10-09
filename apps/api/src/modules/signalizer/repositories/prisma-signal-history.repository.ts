@@ -5,9 +5,9 @@ import type { SignalHistoryRepository, SignalObservationRecord } from './signal-
 @Injectable()
 export class PrismaSignalHistoryRepository implements SignalHistoryRepository {
   constructor(private readonly prisma: PrismaService) {}
-
-  async create(record: Partial<SignalObservationRecord>): Promise<SignalObservationRecord> {
-    const created = await this.prisma.signalObservation.create({
+  async create(record: Partial<SignalObservationRecord>, tx?: any): Promise<SignalObservationRecord> {
+    const db = tx ?? this.prisma;
+    const created = await db.signalObservation.create({
       data: {
         symbol: record.symbol ?? 'UNKNOWN',
         sourceSymbol: record.sourceSymbol ?? record.symbol ?? 'UNKNOWN',
@@ -50,8 +50,9 @@ export class PrismaSignalHistoryRepository implements SignalHistoryRepository {
     };
   }
 
-  async findLatestBySymbol(symbol: string) {
-    const rec = await this.prisma.signalObservation.findFirst({
+  async findLatestBySymbol(symbol: string, tx?: any) {
+    const db = tx ?? this.prisma;
+    const rec = await db.signalObservation.findFirst({
       where: { symbol },
       orderBy: { observedAt: 'desc' }
     });

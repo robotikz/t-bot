@@ -212,4 +212,59 @@ describe('Signalizer API (history/transitions/state)', () => {
     const svc = new SignalizerService(historyRepo as any, transitionRepo as any);
     expect(typeof svc.createObservation).toBe('function');
   });
+
+  it('createObservation priority-1 cases: first obs, duplicates, transitions and concurrency', async () => {
+    const symbol = 'PRIO1USDT';
+    // first observation
+    await request(http).post('/api/signalizer/observations').send({ symbol, pairAnalyzed: symbol, state: 'READY', previousState: null, generatedAt: new Date().toISOString() }).expect(201);
+
+    // duplicate READY
+    await request(http).post('/api/signalizer/observations').send({ symbol, pairAnalyzed: symbol, state: 'READY', previousState: 'READY', generatedAt: new Date().toISOString() }).expect(201);
+
+    // READY -> WATCH
+    await request(http).post('/api/signalizer/observations').send({ symbol, pairAnalyzed: symbol, state: 'WATCH', previousState: 'READY', generatedAt: new Date().toISOString() }).expect(201);
+
+    // WATCH -> READY
+    await request(http).post('/api/signalizer/observations').send({ symbol, pairAnalyzed: symbol, state: 'READY', previousState: 'WATCH', generatedAt: new Date().toISOString() }).expect(201);
+
+    const tr = await request(http).get('/api/signalizer/transitions').expect(200);
+    expect(tr.body.items.filter((t: any) => t.fromState === 'READY' && t.toState === 'WATCH').length).toBe(1);
+    expect(tr.body.items.filter((t: any) => t.fromState === 'WATCH' && t.toState === 'READY').length).toBe(1);
+
+    // concurrency: two identical READY observations sent concurrently should not create transitions
+    const sym2 = 'CONCURUSDT';
+    await Promise.all([
+      request(http).post('/api/signalizer/observations').send({ symbol: sym2, pairAnalyzed: sym2, state: 'READY', previousState: null, generatedAt: new Date().toISOString() }),
+      request(http).post('/api/signalizer/observations').send({ symbol: sym2, pairAnalyzed: sym2, state: 'READY', previousState: null, generatedAt: new Date().toISOString() })
+    ]);
+
+    const tr2 = await request(http).get('/api/signalizer/transitions').query({ symbol: sym2 }).expect(200);
+    expect(tr2.body.items.length).toBe(0);
+  });
+
+  it('priority-2 AI advisory: backend vs AI enforcement', async () => {
+    const S = 'AIUSDT';
+
+    // backend READY + AI READY + usdc ok -> READY
+    await request(http).post('/api/signalizer/observations').send({ symbol: S, pairAnalyzed: S, state: 'READY', previousState: null, usdcAvailable: true, pairValidation: { status: 'USDC_READY' }, setup: { gridCount: 8, investment: 100 }, aiAnalysis: { state: 'READY', decision: 'RUN_GRID', confidence: 90, symbol: S, targetBotPair: S } , generatedAt: new Date().toISOString() }).expect(201);
+    let h = await request(http).get('/api/signalizer/history').query({ symbol: S }).expect(200);
+    expect(h.body.items[0].currentState).toBe('READY');
+
+    // backend READY + AI WATCH -> persisted WATCH (AI can downgrade)
+    await request(http).post('/api/signalizer/observations').send({ symbol: S, pairAnalyzed: S, state: 'READY', previousState: 'READY', usdcAvailable: true, pairValidation: { status: 'USDC_READY' }, setup: { gridCount: 8, investment: 100 }, aiAnalysis: { state: 'WATCH', decision: 'WAIT', confidence: 50, symbol: S, targetBotPair: S }, generatedAt: new Date().toISOString() }).expect(201);
+    h = await request(http).get('/api/signalizer/history').query({ symbol: S }).expect(200);
+    expect(h.body.items[0].currentState).toBe('WATCH');
+
+    // backend SETUP_FORMING + AI READY -> must remain SETUP_FORMING (AI cannot upgrade)
+    const S2 = 'AI2USDT';
+    await request(http).post('/api/signalizer/observations').send({ symbol: S2, pairAnalyzed: S2, state: 'SETUP_FORMING', previousState: null, usdcAvailable: true, setup: { gridCount: 0 }, aiAnalysis: { state: 'READY', decision: 'RUN_GRID', confidence: 95, symbol: S2, targetBotPair: S2 }, generatedAt: new Date().toISOString() }).expect(201);
+    h = await request(http).get('/api/signalizer/history').query({ symbol: S2 }).expect(200);
+    expect(h.body.items[0].currentState).toBe('SETUP_FORMING');
+
+    // backend READY + USDC missing + AI READY -> not READY (MANUAL_CHECK_REQUIRED)
+    const S3 = 'AI3USDT';
+    await request(http).post('/api/signalizer/observations').send({ symbol: S3, pairAnalyzed: S3, state: 'READY', previousState: null, usdcAvailable: false, pairValidation: { status: 'MANUAL_CHECK_REQUIRED' }, setup: { gridCount: 8, investment: 100 }, aiAnalysis: { state: 'READY', decision: 'RUN_GRID', confidence: 85, symbol: S3, targetBotPair: S3 }, generatedAt: new Date().toISOString() }).expect(201);
+    h = await request(http).get('/api/signalizer/history').query({ symbol: S3 }).expect(200);
+    expect(h.body.items[0].currentState).toBe('MANUAL_CHECK_REQUIRED');
+  });
 });

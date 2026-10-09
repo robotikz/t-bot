@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service.js';
 import { PrismaSignalHistoryRepository } from './repositories/prisma-signal-history.repository.js';
 import { PrismaSignalTransitionRepository } from './repositories/prisma-signal-transition.repository.js';
 
@@ -9,7 +10,8 @@ type TransitionFilter = { symbol?: string; from?: string; to?: string };
 export class SignalizerService {
   constructor(
     private readonly historyRepo: PrismaSignalHistoryRepository,
-    private readonly transitionRepo: PrismaSignalTransitionRepository
+    private readonly transitionRepo: PrismaSignalTransitionRepository,
+    private readonly prismaService?: PrismaService
   ) {}
 
   async createObservation(input: any) {
@@ -32,13 +34,110 @@ export class SignalizerService {
 
     const observedAt = input.generatedAt ? new Date(input.generatedAt) : new Date();
 
+    const symbolNorm = (symbol ?? pairAnalyzed ?? 'UNKNOWN').toUpperCase();
+
+    // determine backend and ai states
+    const backendState = currentState as string;
+    const aiState = (aiAnalysis?.state ?? input.finalState) as string | undefined;
+
+    // helper: decide final persisted state according to audit rules
+    const decideFinalState = (backend: string, ai?: string, usdcAvail?: boolean, pairVal?: any, setupObj?: any) => {
+      // default: respect backend
+      let finalState = backend;
+
+      // If backend is READY, AI may downgrade or block READY
+      if (backend === 'READY') {
+        if (ai && ai !== 'READY') {
+          // AI explicitly downgraded
+          finalState = ai as any;
+        } else {
+          // AI says READY (or missing) -> must still check USDC and basic setup validity
+          const usdcOk = !!usdcAvail || (pairVal && pairVal.status === 'USDC_READY');
+          const setupValid = !!setupObj && typeof setupObj.gridCount === 'number' && setupObj.gridCount > 0 && (setupObj.investment ?? 0) > 0;
+          if (!usdcOk) {
+            finalState = 'MANUAL_CHECK_REQUIRED';
+          } else if (!setupValid) {
+            finalState = 'MANUAL_CHECK_REQUIRED';
+          } else {
+            finalState = 'READY';
+          }
+        }
+      } else {
+        // backend not READY -> AI must not upgrade to READY
+        if (ai === 'READY') {
+          // ignore AI upgrade
+          finalState = backend;
+        } else if (ai && ai !== 'READY') {
+          // allow AI to advise a more restrictive state (downgrade) only when backend is READY;
+          // for non-READY backends, keep backend state authoritative
+          finalState = backend;
+        }
+      }
+
+      return finalState;
+    };
+
+    // Use Prisma transaction when available; repositories accept an optional tx client.
+    // If Prisma is not injected (e.g., unit tests using in-memory repos), fall back to non-transactional but still read-before-insert logic.
+    const prismaService: any = (this as any).prismaService ?? (this as any).prisma ?? null;
+
+    if (prismaService && typeof prismaService.$transaction === 'function') {
+      const result = await prismaService.$transaction(async (tx: any) => {
+        const last = await this.historyRepo.findLatestBySymbol(symbolNorm, tx);
+        const prevState = last?.currentState ?? null;
+
+        const persistState = decideFinalState(backendState, aiState, usdcAvailable, pairValidation, setup);
+
+        const created = await this.historyRepo.create({
+          symbol: symbolNorm,
+          sourceSymbol: pairAnalyzed ?? symbol ?? 'UNKNOWN',
+          targetSymbol: targetBotPair ?? 'UNKNOWN',
+          observedAt,
+          previousState: prevState ?? null,
+          currentState: persistState,
+          confidence: confidence ?? null,
+          risk: (setup?.risk as string) ?? aiAnalysis?.risk ?? null,
+          setupSnapshot: setup ?? {},
+          aiDecision: aiAnalysis?.decision ?? null,
+          reasons: reasons ?? [],
+          rejections: rejectionReasons ?? [],
+          usdcAvailable: !!usdcAvailable,
+          pairValidation: pairValidation ?? {},
+          currentPrice: currentPrice ?? market?.price ?? 0,
+          timeframeInfo: market ?? {}
+        }, tx);
+
+        let transition = null;
+        let transitionCreated = false;
+        if (prevState !== null && prevState !== created.currentState) {
+          transition = await this.transitionRepo.create({
+            symbol: created.symbol,
+            fromState: prevState,
+            toState: created.currentState,
+            observedAt: created.observedAt,
+            observationId: created.id
+          }, tx);
+          transitionCreated = true;
+        }
+
+        return { observation: created, transitionCreated, transition };
+      });
+
+      return result;
+    }
+
+    // Fallback (no Prisma): read-before-insert using provided repositories (suitable for unit tests)
+    const last = await this.historyRepo.findLatestBySymbol(symbolNorm as any);
+    const prevState = last?.currentState ?? null;
+    const persistState = decideFinalState(backendState, aiState, usdcAvailable, pairValidation, setup);
+
     const created = await this.historyRepo.create({
-      symbol: (symbol ?? pairAnalyzed ?? 'UNKNOWN').toUpperCase(),
+      symbol: symbolNorm,
       sourceSymbol: pairAnalyzed ?? symbol ?? 'UNKNOWN',
       targetSymbol: targetBotPair ?? 'UNKNOWN',
       observedAt,
-      previousState: previousState ?? null,
-      currentState,
+      previousState: prevState ?? null,
+      currentState: persistState,
       confidence: confidence ?? null,
       risk: (setup?.risk as string) ?? aiAnalysis?.risk ?? null,
       setupSnapshot: setup ?? {},
@@ -51,12 +150,8 @@ export class SignalizerService {
       timeframeInfo: market ?? {}
     });
 
-    const last = await this.historyRepo.findLatestBySymbol(created.symbol);
-    const prevState = last?.currentState ?? null;
-
     let transition = null;
     let transitionCreated = false;
-
     if (prevState !== null && prevState !== created.currentState) {
       transition = await this.transitionRepo.create({
         symbol: created.symbol,

@@ -5,9 +5,9 @@ import type { SignalTransitionRepository, SignalTransitionRecord } from './signa
 @Injectable()
 export class PrismaSignalTransitionRepository implements SignalTransitionRepository {
   constructor(private readonly prisma: PrismaService) {}
-
-  async create(record: Partial<SignalTransitionRecord>): Promise<SignalTransitionRecord> {
-    const created = await this.prisma.signalTransition.create({
+  async create(record: Partial<SignalTransitionRecord>, tx?: any): Promise<SignalTransitionRecord> {
+    const db = tx ?? this.prisma;
+    const created = await db.signalTransition.create({
       data: {
         symbol: record.symbol ?? 'UNKNOWN',
         fromState: record.fromState ?? null,
@@ -28,8 +28,9 @@ export class PrismaSignalTransitionRepository implements SignalTransitionReposit
     };
   }
 
-  async findLatestBySymbol(symbol: string) {
-    const rec = await this.prisma.signalTransition.findFirst({ where: { symbol }, orderBy: { observedAt: 'desc' } });
+  async findLatestBySymbol(symbol: string, tx?: any) {
+    const db = tx ?? this.prisma;
+    const rec = await db.signalTransition.findFirst({ where: { symbol }, orderBy: { observedAt: 'desc' } });
     if (!rec) return null;
     return {
       id: rec.id,
