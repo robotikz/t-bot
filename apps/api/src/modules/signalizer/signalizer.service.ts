@@ -82,48 +82,72 @@ export class SignalizerService {
     const prismaService: any = (this as any).prismaService ?? (this as any).prisma ?? null;
 
     if (prismaService && typeof prismaService.$transaction === 'function') {
-      const result = await prismaService.$transaction(async (tx: any) => {
-        const last = await this.historyRepo.findLatestBySymbol(symbolNorm, tx);
-        const prevState = last?.currentState ?? null;
+      // Use SERIALIZABLE transactions with bounded retry to ensure per-symbol
+      // serialization under concurrent observations. Read-before-insert and
+      // transition creation happen inside the transaction. This avoids adding
+      // schema-level lock rows or relying on advisory lock functions.
+      const maxAttempts = 5;
+      let attempt = 0;
+      while (true) {
+        attempt += 1;
+        try {
+          const result = await prismaService.$transaction(
+            async (tx: any) => {
+              const last = await this.historyRepo.findLatestBySymbol(symbolNorm, tx);
+              const prevState = last?.currentState ?? null;
 
-        const persistState = decideFinalState(backendState, aiState, usdcAvailable, pairValidation, setup);
+              const persistState = decideFinalState(backendState, aiState, usdcAvailable, pairValidation, setup);
 
-        const created = await this.historyRepo.create({
-          symbol: symbolNorm,
-          sourceSymbol: pairAnalyzed ?? symbol ?? 'UNKNOWN',
-          targetSymbol: targetBotPair ?? 'UNKNOWN',
-          observedAt,
-          previousState: prevState ?? null,
-          currentState: persistState,
-          confidence: confidence ?? null,
-          risk: (setup?.risk as string) ?? aiAnalysis?.risk ?? null,
-          setupSnapshot: setup ?? {},
-          aiDecision: aiAnalysis?.decision ?? null,
-          reasons: reasons ?? [],
-          rejections: rejectionReasons ?? [],
-          usdcAvailable: !!usdcAvailable,
-          pairValidation: pairValidation ?? {},
-          currentPrice: currentPrice ?? market?.price ?? 0,
-          timeframeInfo: market ?? {}
-        }, tx);
+              const created = await this.historyRepo.create({
+                symbol: symbolNorm,
+                sourceSymbol: pairAnalyzed ?? symbol ?? 'UNKNOWN',
+                targetSymbol: targetBotPair ?? 'UNKNOWN',
+                observedAt,
+                previousState: prevState ?? null,
+                currentState: persistState,
+                confidence: confidence ?? null,
+                risk: (setup?.risk as string) ?? aiAnalysis?.risk ?? null,
+                setupSnapshot: setup ?? {},
+                aiDecision: aiAnalysis?.decision ?? null,
+                reasons: reasons ?? [],
+                rejections: rejectionReasons ?? [],
+                usdcAvailable: !!usdcAvailable,
+                pairValidation: pairValidation ?? {},
+                currentPrice: currentPrice ?? market?.price ?? 0,
+                timeframeInfo: market ?? {}
+              }, tx);
 
-        let transition = null;
-        let transitionCreated = false;
-        if (prevState !== null && prevState !== created.currentState) {
-          transition = await this.transitionRepo.create({
-            symbol: created.symbol,
-            fromState: prevState,
-            toState: created.currentState,
-            observedAt: created.observedAt,
-            observationId: created.id
-          }, tx);
-          transitionCreated = true;
+              let transition = null;
+              let transitionCreated = false;
+              if (prevState !== null && prevState !== created.currentState) {
+                transition = await this.transitionRepo.create({
+                  symbol: created.symbol,
+                  fromState: prevState,
+                  toState: created.currentState,
+                  observedAt: created.observedAt,
+                  observationId: created.id
+                }, tx);
+                transitionCreated = true;
+              }
+
+              return { observation: created, transitionCreated, transition };
+            },
+            { isolationLevel: 'Serializable' }
+          );
+
+          return result;
+        } catch (err: any) {
+          // Detect serialization failures from Postgres and retry up to maxAttempts.
+          const msg = err instanceof Error ? err.message : String(err);
+          const isSerializationError = /could not serialize/i.test(msg) || /SQLSTATE\[40001\]/.test(msg);
+          if (isSerializationError && attempt < maxAttempts) {
+            // small backoff
+            await new Promise((r) => setTimeout(r, 20 * attempt));
+            continue;
+          }
+          throw err;
         }
-
-        return { observation: created, transitionCreated, transition };
-      });
-
-      return result;
+      }
     }
 
     // Fallback (no Prisma): read-before-insert using provided repositories (suitable for unit tests)
