@@ -12,18 +12,14 @@ describe('Signalizer PostgreSQL concurrency integration', () => {
   beforeAll(async () => {
     const dbUrl = process.env.DATABASE_URL;
     if (!dbUrl) {
-      // Skip tests when no DB available
-      console.warn('DATABASE_URL not set — skipping Postgres concurrency integration tests');
-      return;
+      throw new Error('DATABASE_URL not set — Postgres concurrency integration tests require a database');
     }
 
     prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
     try {
       await prisma.$connect();
     } catch (err) {
-      console.warn('Unable to connect to Postgres — skipping concurrency integration tests', err);
-      prisma = null;
-      return;
+      throw new Error('Unable to connect to Postgres — Postgres concurrency integration tests require a reachable database');
     }
 
     historyRepo = new PrismaSignalHistoryRepository(prisma as any);
@@ -43,9 +39,7 @@ describe('Signalizer PostgreSQL concurrency integration', () => {
 
   it('serializes concurrent observations for the same symbol (READY duplicate + WATCH)', async () => {
     if (!process.env.DATABASE_URL || !prisma || !svc) {
-      // not verified — no DB
-      console.warn('Postgres not available — test NOT VERIFIED');
-      return;
+      throw new Error('Postgres not available — test NOT VERIFIED');
     }
 
     const symbol = 'PGCONCURUSDT';
@@ -55,7 +49,7 @@ describe('Signalizer PostgreSQL concurrency integration', () => {
 
     // concurrently send a duplicate READY and a WATCH -> should result in exactly one READY->WATCH transition
     await Promise.all([
-      svc.createObservation({ symbol, pairAnalyzed: symbol, state: 'READY', previousState: 'READY', generatedAt: new Date().toISOString() }),
+      svc.createObservation({ symbol, pairAnalyzed: symbol, state: 'READY', previousState: 'READY', generatedAt: new Date().toISOString(), usdcAvailable: true, pairValidation: { status: 'USDC_READY' }, setup: { gridCount: 8, investment: 100 } }),
       svc.createObservation({ symbol, pairAnalyzed: symbol, state: 'WATCH', previousState: 'READY', generatedAt: new Date().toISOString() })
     ]);
 

@@ -139,7 +139,10 @@ export class SignalizerService {
         } catch (err: any) {
           // Detect serialization failures from Postgres and retry up to maxAttempts.
           const msg = err instanceof Error ? err.message : String(err);
-          const isSerializationError = /could not serialize/i.test(msg) || /SQLSTATE\[40001\]/.test(msg);
+          const isSerializationError = /could not serialize/i.test(msg)
+            || /SQLSTATE\[40001\]/.test(msg)
+            || /write conflict/i.test(msg)
+            || /deadlock detected/i.test(msg);
           if (isSerializationError && attempt < maxAttempts) {
             // small backoff
             await new Promise((r) => setTimeout(r, 20 * attempt));
