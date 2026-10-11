@@ -3,6 +3,7 @@ import { ScannerService } from '../src/modules/scanner/scanner.service.js';
 import type { AnalysisService } from '../src/modules/analysis/analysis.service.js';
 import type { MarketService } from '../src/modules/market/market.service.js';
 import { loadConfig } from '../src/config/config.js';
+import { ExternalServiceError, ValidationError } from '../src/shared/errors/app-error.js';
 
 function makeAnalysis(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -172,6 +173,76 @@ describe('scanner.service', () => {
       ['BBBUSDC', 'WATCH'],
       ['AAAUSDC', 'REJECTED']
     ]);
+  });
+
+  it('forces REJECTED for STRONG_DOWNTREND regardless of score', async () => {
+    const config = { ...loadConfig(), topCandidates: 10 };
+    const service = new ScannerService(marketService, analysisService, config);
+    const mk = (symbol: string) => ({ symbol, baseCoin: symbol, quoteCoin: 'USDC', status: 'Trading' });
+    const tk = (symbol: string) => ({
+      symbol, lastPrice: 100, change24hPercent: 0, high24h: 101, low24h: 99,
+      volume24h: 1, turnover24h: 2_000_000, timestamp: Date.now()
+    });
+    vi.mocked(marketService.getMarketsByQuoteCoin).mockResolvedValue([mk('AAAUSDC')] as any);
+    vi.mocked(marketService.getTickers).mockResolvedValue([tk('AAAUSDC')] as any);
+    vi.mocked(marketService.getCandles).mockResolvedValue([]);
+    vi.mocked(analysisService.analyzeSymbol).mockResolvedValue(
+      makeAnalysis({ symbol: 'AAAUSDC', gridScore: 95, rejectionReasons: ['STRONG_DOWNTREND'] })
+    );
+
+    const result = await service.scan();
+    expect(result.candidates[0]?.status).toBe('REJECTED');
+  });
+
+  describe('per-symbol error isolation', () => {
+    const setup = () => {
+      const config = { ...loadConfig(), topCandidates: 10 };
+      const service = new ScannerService(marketService, analysisService, config);
+      const mk = (symbol: string) => ({ symbol, baseCoin: symbol, quoteCoin: 'USDC', status: 'Trading' });
+      const tk = (symbol: string) => ({
+        symbol, lastPrice: 100, change24hPercent: 0, high24h: 101, low24h: 99,
+        volume24h: 1, turnover24h: 2_000_000, timestamp: Date.now()
+      });
+      vi.mocked(marketService.getMarketsByQuoteCoin).mockResolvedValue([mk('BADUSDC'), mk('GOODUSDC')] as any);
+      vi.mocked(marketService.getTickers).mockResolvedValue([tk('BADUSDC'), tk('GOODUSDC')] as any);
+      vi.mocked(marketService.getCandles).mockResolvedValue([]);
+      return service;
+    };
+
+    it('records a malformed-data symbol as unresolved and still returns valid candidates', async () => {
+      const service = setup();
+      vi.mocked(analysisService.analyzeSymbol).mockImplementation(async (symbol: string) => {
+        if (symbol === 'BADUSDC') {
+          throw new ValidationError('MALFORMED_CANDLE', 'Non-finite open/high/low value');
+        }
+        return makeAnalysis({ symbol, gridScore: 80 });
+      });
+
+      const result = await service.scan();
+
+      expect(result.candidates.map((c) => c.symbol)).toEqual(['GOODUSDC']);
+      expect(result.candidates[0]?.status).toBe('CANDIDATE');
+      expect(result.unresolvedSymbols).toEqual([
+        expect.objectContaining({ symbol: 'BADUSDC', reasonCode: 'INVALID_MARKET_DATA' })
+      ]);
+      expect(result.unresolvedSymbols?.[0]?.detail).toContain('MALFORMED_CANDLE');
+    });
+
+    it('propagates systemic external-service errors instead of swallowing them', async () => {
+      const service = setup();
+      vi.mocked(analysisService.analyzeSymbol).mockRejectedValue(
+        new ExternalServiceError('Bybit rate limit exceeded', 'RATE_LIMIT', 429)
+      );
+
+      await expect(service.scan()).rejects.toThrow('Bybit rate limit exceeded');
+    });
+
+    it('propagates unexpected non-validation errors', async () => {
+      const service = setup();
+      vi.mocked(analysisService.analyzeSymbol).mockRejectedValue(new TypeError('boom'));
+
+      await expect(service.scan()).rejects.toThrow('boom');
+    });
   });
 
   it('keeps CANDIDATE status while entry timing waits for pullback at range high', async () => {

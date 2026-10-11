@@ -38,6 +38,9 @@ export class EntryTimingService {
     const pullbackSignal = detectPullbackSignal(candles15m, analysis15m.support);
     const breakoutSignal = detectBreakoutRetestSignal(candles15m, analysis15m.resistance);
 
+    const belowRange =
+      analysis15m.priceVsRange === 'BELOW_RANGE' || analysis1h.priceVsRange === 'BELOW_RANGE';
+
     const flags: EvaluationFlags = {
       isNearUpperRange: positionInRangePercent >= 85,
       isVeryHighRangePosition: positionInRangePercent >= 90,
@@ -56,6 +59,7 @@ export class EntryTimingService {
         analysis1h.trendDirection === 'UP' &&
         (analysis15m.trendDirection === 'UP' || analysis15m.trendDirection === 'SIDEWAYS'),
       pullbackReadySetup:
+        !belowRange &&
         analysis1h.trendDirection === 'UP' &&
         (analysis15m.trendDirection === 'UP' || analysis15m.trendDirection === 'SIDEWAYS') &&
         pullbackSignal.isStabilizing &&
@@ -85,6 +89,10 @@ export class EntryTimingService {
 
     if (analysis1h.trendDirection === 'UP' && analysis15m.trendDirection === 'DOWN') {
       reasons.push('1H trend is bullish but 15M is still correcting.');
+    }
+
+    if (belowRange) {
+      reasons.push('Price is below the established range; support has failed. Do not enter.');
     }
 
     if (flags.trend1hDown) {
@@ -123,7 +131,7 @@ export class EntryTimingService {
 
     let entryTiming = resolveEntryTimingByScore(score);
 
-    if (flags.trend1hDown || flags.extremePumpNearHigh) {
+    if (belowRange || flags.trend1hDown || flags.extremePumpNearHigh) {
       entryTiming = 'NO_ENTRY';
     } else if (breakoutSignal.breakoutDetected && !breakoutSignal.breakoutConfirmed) {
       entryTiming = 'WAIT_BREAKOUT_RETEST';

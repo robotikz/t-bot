@@ -6,6 +6,7 @@ export interface RangeMetrics {
   rangeLow: number;
   rangePercent: number;
   positionInRangePercent: number;
+  priceVsRange: 'BELOW_RANGE' | 'WITHIN_RANGE' | 'ABOVE_RANGE';
 }
 
 export function calculateRangeMetrics(candles: Candle[], price: number): RangeMetrics {
@@ -14,7 +15,8 @@ export function calculateRangeMetrics(candles: Candle[], price: number): RangeMe
       rangeHigh: price,
       rangeLow: price,
       rangePercent: 0,
-      positionInRangePercent: 50
+      positionInRangePercent: 50,
+      priceVsRange: 'WITHIN_RANGE'
     };
   }
 
@@ -36,6 +38,7 @@ export function calculateRangeMetrics(candles: Candle[], price: number): RangeMe
     rangeHigh: round(rangeHigh),
     rangeLow: round(rangeLow),
     rangePercent: round(rangePercent),
-    positionInRangePercent: round(positionInRangePercent)
+    positionInRangePercent: round(positionInRangePercent),
+    priceVsRange: price < rangeLow ? 'BELOW_RANGE' : price > rangeHigh ? 'ABOVE_RANGE' : 'WITHIN_RANGE'
   };
 }

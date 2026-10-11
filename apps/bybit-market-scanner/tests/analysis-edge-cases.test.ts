@@ -28,7 +28,20 @@ describe('range edge cases', () => {
 
   it('returns a zero-width range for empty candles', () => {
     const r = calculateRangeMetrics([], 100);
-    expect(r).toEqual({ rangeHigh: 100, rangeLow: 100, rangePercent: 0, positionInRangePercent: 50 });
+    expect(r).toEqual({
+      rangeHigh: 100,
+      rangeLow: 100,
+      rangePercent: 0,
+      positionInRangePercent: 50,
+      priceVsRange: 'WITHIN_RANGE'
+    });
+  });
+
+  it('exposes the unclamped out-of-range condition via priceVsRange', () => {
+    expect(calculateRangeMetrics(band, 80).priceVsRange).toBe('BELOW_RANGE');
+    expect(calculateRangeMetrics(band, 120).priceVsRange).toBe('ABOVE_RANGE');
+    expect(calculateRangeMetrics(band, 90).priceVsRange).toBe('WITHIN_RANGE');
+    expect(calculateRangeMetrics(band, 110).priceVsRange).toBe('WITHIN_RANGE');
   });
 
   it('returns rangePercent 0 when the low is non-positive', () => {

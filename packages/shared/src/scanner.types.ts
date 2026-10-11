@@ -70,6 +70,8 @@ export interface MarketAnalysis {
   distanceToSupportPercent: number;
   distanceToResistancePercent: number;
   positionInRangePercent: number;
+  /** Unclamped relation of price to the closed-candle range; positionInRangePercent is clamped to 0-100. */
+  priceVsRange?: 'BELOW_RANGE' | 'WITHIN_RANGE' | 'ABOVE_RANGE';
   volatilityPercent: number;
   trendDirection: TrendDirection;
   trendStrength: number;
@@ -129,5 +131,6 @@ export interface ScanResult {
 
 export interface UnresolvedInstrument {
   symbol: string;
-  reasonCode: 'MISSING_TICKER';
+  reasonCode: 'MISSING_TICKER' | 'INVALID_MARKET_DATA';
+  detail?: string;
 }

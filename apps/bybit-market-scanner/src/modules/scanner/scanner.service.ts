@@ -1,7 +1,9 @@
 import type { AppConfig } from '../../config/config.js';
 import { mapWithConcurrency } from '../../shared/utils/promise-pool.js';
+import { ValidationError } from '../../shared/errors/app-error.js';
+import { logger } from '../../shared/utils/logger.js';
 import type { AnalysisService } from '../analysis/analysis.service.js';
-import type { ScannerCandidate, ScanResult } from './scanner.types.js';
+import type { ScannerCandidate, ScanResult, UnresolvedInstrument } from './scanner.types.js';
 import type { MarketService } from '../market/market.service.js';
 import type { Timeframe } from '../market/market.types.js';
 import { EntryTimingService } from './domain/entry-timing/entry-timing.service.js';
@@ -19,8 +21,21 @@ function buildPositiveReasons(score: number, rejectionReasons: string[]): string
   return reasons;
 }
 
-// Mandatory data/liquidity failures can never be offset by a high score.
-const HARD_REJECTION_REASONS = new Set(['LOW_LIQUIDITY', 'INSUFFICIENT_CANDLES']);
+// Mandatory failures can never be offset by a high score. STRONG_DOWNTREND is a
+// combined 24h-drop + DOWN trend + window-drop condition and is stricter than the
+// 1h-DOWN condition the signalizer already maps to NO_TRADE. Range, volatility and
+// TREND_TOO_STRONG stay soft: they are already penalised by the score components.
+const HARD_REJECTION_REASONS = new Set(['LOW_LIQUIDITY', 'INSUFFICIENT_CANDLES', 'STRONG_DOWNTREND']);
+
+// Per-symbol data problems that must not abort the whole scan. Anything else
+// (HTTP/rate-limit/timeout ExternalServiceError, programming errors) still fails the scan.
+const ISOLATED_SYMBOL_ERROR_CODES = new Set([
+  'MALFORMED_CANDLE',
+  'MALFORMED_BYBIT_KLINE',
+  'MALFORMED_BYBIT_TICKER',
+  'INSUFFICIENT_CANDLES',
+  'INVALID_SYMBOL'
+]);
 
 const STATUS_RANK: Record<ScannerCandidate['status'], number> = {
   CANDIDATE: 0,
@@ -85,7 +100,7 @@ export class ScannerService {
     // or a malformed ticker payload that was dropped during mapping). They
     // must be reported with an explicit reason code and must never silently
     // become a CANDIDATE/WATCH/READY result.
-    const unresolvedSymbols: { symbol: string; reasonCode: 'MISSING_TICKER' }[] = [];
+    const unresolvedSymbols: UnresolvedInstrument[] = [];
     const symbols = markets
       .map((market) => market.symbol)
       .filter((symbol) => {
@@ -98,55 +113,35 @@ export class ScannerService {
         return Boolean(ticker && ticker.turnover24h >= minTurnover);
       });
 
-    const candidates = await mapWithConcurrency(
+    const results = await mapWithConcurrency(
       symbols,
       this.config.maxConcurrentCandleRequests,
-      async (symbol) => {
-        const market = tickerBySymbol.get(symbol);
-        if (!market) {
-          throw new Error(`Ticker missing for symbol ${symbol}`);
+      async (symbol): Promise<ScannerCandidate | null> => {
+        try {
+          return await this.analyzeCandidate(symbol, tickerBySymbol, {
+            primaryTimeframe,
+            secondaryTimeframe,
+            minTurnover
+          });
+        } catch (error) {
+          if (error instanceof ValidationError && ISOLATED_SYMBOL_ERROR_CODES.has(error.code)) {
+            logger.warn('scanner symbol skipped due to invalid market data', {
+              symbol,
+              code: error.code,
+              message: error.message
+            });
+            unresolvedSymbols.push({
+              symbol,
+              reasonCode: 'INVALID_MARKET_DATA',
+              detail: `${error.code}: ${error.message}`
+            });
+            return null;
+          }
+          throw error;
         }
-
-        const [primaryAnalysis, secondaryAnalysis, candles15m] = await Promise.all([
-          this.analysisService.analyzeSymbol(symbol, primaryTimeframe, { minTurnover }),
-          this.analysisService.analyzeSymbol(symbol, secondaryTimeframe, { minTurnover }),
-          this.marketService.getCandles(symbol, '15m', 80)
-        ]);
-
-        const analysisByTimeframe = new Map<Timeframe, typeof primaryAnalysis>([
-          [primaryTimeframe, primaryAnalysis],
-          [secondaryTimeframe, secondaryAnalysis]
-        ]);
-
-        const analysis1h =
-          analysisByTimeframe.get('1h') ?? (await this.analysisService.analyzeSymbol(symbol, '1h', { minTurnover }));
-        const analysis15m =
-          analysisByTimeframe.get('15m') ?? (await this.analysisService.analyzeSymbol(symbol, '15m', { minTurnover }));
-
-        const score = primaryAnalysis.gridScore * 0.7 + secondaryAnalysis.gridScore * 0.3;
-        const rejectionReasons = Array.from(
-          new Set([...primaryAnalysis.rejectionReasons, ...secondaryAnalysis.rejectionReasons])
-        );
-
-        const entryTiming = this.entryTimingService.evaluate({
-          analysis1h,
-          analysis15m,
-          candles15m
-        });
-
-        return {
-          symbol,
-          score,
-          status: resolveStatus(score, rejectionReasons),
-          market,
-          analysis15m,
-          analysis1h,
-          reasons: buildPositiveReasons(score, rejectionReasons),
-          rejectionReasons,
-          ...entryTiming
-        } satisfies ScannerCandidate;
       }
     );
+    const candidates = results.filter((item): item is ScannerCandidate => item !== null);
 
     const sorted = [...candidates]
       .sort((a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status] || b.score - a.score)
@@ -159,5 +154,55 @@ export class ScannerService {
       candidates: sorted,
       ...(unresolvedSymbols.length > 0 ? { unresolvedSymbols } : {})
     };
+  }
+
+  private async analyzeCandidate(
+    symbol: string,
+    tickerBySymbol: Map<string, ScannerCandidate['market']>,
+    opts: { primaryTimeframe: Timeframe; secondaryTimeframe: Timeframe; minTurnover: number }
+  ): Promise<ScannerCandidate> {
+    const { primaryTimeframe, secondaryTimeframe, minTurnover } = opts;
+    const market = tickerBySymbol.get(symbol);
+    if (!market) {
+      throw new Error(`Ticker missing for symbol ${symbol}`);
+    }
+    const [primaryAnalysis, secondaryAnalysis, candles15m] = await Promise.all([
+      this.analysisService.analyzeSymbol(symbol, primaryTimeframe, { minTurnover }),
+      this.analysisService.analyzeSymbol(symbol, secondaryTimeframe, { minTurnover }),
+      this.marketService.getCandles(symbol, '15m', 80)
+    ]);
+
+    const analysisByTimeframe = new Map<Timeframe, typeof primaryAnalysis>([
+      [primaryTimeframe, primaryAnalysis],
+      [secondaryTimeframe, secondaryAnalysis]
+    ]);
+
+    const analysis1h =
+      analysisByTimeframe.get('1h') ?? (await this.analysisService.analyzeSymbol(symbol, '1h', { minTurnover }));
+    const analysis15m =
+      analysisByTimeframe.get('15m') ?? (await this.analysisService.analyzeSymbol(symbol, '15m', { minTurnover }));
+
+    const score = primaryAnalysis.gridScore * 0.7 + secondaryAnalysis.gridScore * 0.3;
+    const rejectionReasons = Array.from(
+      new Set([...primaryAnalysis.rejectionReasons, ...secondaryAnalysis.rejectionReasons])
+    );
+
+    const entryTiming = this.entryTimingService.evaluate({
+      analysis1h,
+      analysis15m,
+      candles15m
+    });
+
+    return {
+      symbol,
+      score,
+      status: resolveStatus(score, rejectionReasons),
+      market,
+      analysis15m,
+      analysis1h,
+      reasons: buildPositiveReasons(score, rejectionReasons),
+      rejectionReasons,
+      ...entryTiming
+    } satisfies ScannerCandidate;
   }
 }

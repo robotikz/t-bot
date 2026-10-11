@@ -131,6 +131,7 @@ export class AnalysisService {
       distanceToSupportPercent: sr.distanceToSupportPercent,
       distanceToResistancePercent: sr.distanceToResistancePercent,
       positionInRangePercent: range.positionInRangePercent,
+      priceVsRange: range.priceVsRange,
       volatilityPercent,
       trendDirection: trend.trendDirection,
       trendStrength: trend.trendStrength,

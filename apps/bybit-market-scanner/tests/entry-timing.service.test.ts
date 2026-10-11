@@ -48,6 +48,28 @@ function makeAnalysis(overrides: Partial<MarketAnalysis>): MarketAnalysis {
 describe('entry timing service', () => {
   const service = new EntryTimingService(loadConfig());
 
+  it('never signals READY when price is below the established range', () => {
+    const analysis1h = makeAnalysis({ timeframe: '1h', trendDirection: 'UP', priceVsRange: 'BELOW_RANGE', positionInRangePercent: 0 });
+    const analysis15m = makeAnalysis({
+      timeframe: '15m',
+      trendDirection: 'UP',
+      priceVsRange: 'BELOW_RANGE',
+      positionInRangePercent: 0,
+      distanceToSupportPercent: 0.5
+    });
+
+    const output = service.evaluate({
+      analysis1h,
+      analysis15m,
+      candles15m: makeCandles([1.02, 1.01, 1, 0.99, 0.985, 0.985, 0.986, 0.987])
+    });
+
+    expect(output.entryTiming).toBe('NO_ENTRY');
+    expect(output.entryReasons).toContain(
+      'Price is below the established range; support has failed. Do not enter.'
+    );
+  });
+
   it('marks strong pump near resistance as WAIT_PULLBACK', () => {
     const analysis1h = makeAnalysis({ timeframe: '1h', trendDirection: 'UP' });
     const analysis15m = makeAnalysis({
