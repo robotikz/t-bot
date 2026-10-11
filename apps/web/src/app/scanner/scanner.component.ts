@@ -81,15 +81,15 @@ export class ScannerComponent {
   private readonly cdr = inject(ChangeDetectorRef);
   private usdcExecutionRequestId = 0;
 
-  quoteCoins: string[] = ['USDT'];
+  quoteCoins: string[] = ['USDC'];
   isFiltersExpanded = false;
 
   readonly form = this.fb.nonNullable.group({
-    quoteCoin: this.fb.nonNullable.control<string>('USDT'),
+    quoteCoin: this.fb.nonNullable.control<string>('USDC'),
     timeframe: this.fb.nonNullable.control<'1h' | '15m'>('1h'),
     secondaryTimeframe: this.fb.nonNullable.control<'1h' | '15m'>('15m'),
     limit: this.fb.nonNullable.control<number>(100, [Validators.min(1), Validators.max(500)]),
-    minTurnover: this.fb.nonNullable.control<number | null>(100000),
+    minTurnover: this.fb.nonNullable.control<number | null>(25000),
   });
 
   state: ViewState = 'initial';
@@ -104,15 +104,15 @@ export class ScannerComponent {
 
   constructor() {
     this.scannerService.getQuoteCoins().pipe(
-      map((quoteCoins) => (quoteCoins.length > 0 ? quoteCoins : ['USDT'])),
+      map((quoteCoins) => (quoteCoins.length > 0 ? quoteCoins : ['USDC'])),
       catchError((error) => {
-        return of(['USDT']);
+        return of(['USDC']);
       }),
     ).subscribe((quoteCoins) => {
       this.quoteCoins = quoteCoins;
 
       if (!quoteCoins.includes(this.form.controls.quoteCoin.value)) {
-        this.form.controls.quoteCoin.setValue(quoteCoins[0] ?? 'USDT');
+        this.form.controls.quoteCoin.setValue(quoteCoins[0] ?? 'USDC');
       }
 
       this.cdr.markForCheck();
@@ -316,7 +316,7 @@ export class ScannerComponent {
     else if (candidate.market.change24hPercent > 12 && position >= 80) score -= 24;
     else if (candidate.market.change24hPercent > 8 && position >= 70) score -= 14;
 
-    if (candidate.market.turnover24h < (this.form.controls.minTurnover.value ?? 100000)) {
+    if (candidate.market.turnover24h < (this.form.controls.minTurnover.value ?? 25000)) {
       score -= 20;
     }
 
@@ -566,7 +566,7 @@ export class ScannerComponent {
     analysis1h: MarketAnalysis,
     analysis15m: MarketAnalysis,
   ): UsdcExecutionSection {
-    const minTurnover = Math.max(0, this.form.controls.minTurnover.value ?? 100000);
+    const minTurnover = Math.max(0, this.form.controls.minTurnover.value ?? 25000);
     const liquiditySufficient = analysis1h.turnover24h >= minTurnover;
     const lowLiquidity = !liquiditySufficient;
     const closeToSupport =

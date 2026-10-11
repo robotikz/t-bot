@@ -120,7 +120,7 @@ export class ScannerService {
     params = params.set('timeframe', query.timeframe ?? '1h');
     params = params.set('secondaryTimeframe', query.secondaryTimeframe ?? '15m');
     params = params.set('limit', String(query.limit ?? 10));
-    params = params.set('quoteCoin', (query.quoteCoin ?? 'USDT').toUpperCase());
+    params = params.set('quoteCoin', (query.quoteCoin ?? 'USDC').toUpperCase());
 
     if (query.minTurnover !== undefined && query.minTurnover !== null) {
       params = params.set('minTurnover', String(query.minTurnover));
