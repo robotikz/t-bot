@@ -189,4 +189,54 @@ describe('scanner.service', () => {
     expect(candidate?.status).toBe('CANDIDATE');
     expect(candidate?.entryTiming).toBe('WAIT_PULLBACK');
   });
+
+  it('reports instruments with no matching ticker as unresolved and never turns them into a candidate', async () => {
+    const config = { ...loadConfig(), topCandidates: 5 };
+    const service = new ScannerService(marketService, analysisService, config);
+
+    // ZKUSDC is a valid, Trading instrument but Bybit's ticker feed does not
+    // return it in this scenario (e.g. transient feed gap). It must be
+    // reported explicitly, not silently dropped, and must never become a
+    // CANDIDATE/WATCH/READY result.
+    vi.mocked(marketService.getMarketsByQuoteCoin).mockResolvedValue([
+      { symbol: 'ASTERUSDC', baseCoin: 'ASTER', quoteCoin: 'USDC', status: 'Trading' },
+      { symbol: 'ZKUSDC', baseCoin: 'ZK', quoteCoin: 'USDC', status: 'Trading' }
+    ]);
+
+    vi.mocked(marketService.getTickers).mockResolvedValue([
+      {
+        symbol: 'ASTERUSDC',
+        lastPrice: 0.71,
+        change24hPercent: 0.1,
+        high24h: 0.72,
+        low24h: 0.7,
+        volume24h: 10_000,
+        turnover24h: 2_000_000,
+        timestamp: Date.now()
+      }
+    ]);
+
+    vi.mocked(marketService.getCandles).mockResolvedValue(
+      Array.from({ length: 20 }, (_, index) => ({
+        timestamp: Date.now() - (20 - index) * 60_000,
+        open: 0.7,
+        high: 0.71,
+        low: 0.69,
+        close: 0.7,
+        volume: 1_000,
+        turnover: 100_000,
+        isClosed: true
+      }))
+    );
+
+    vi.mocked(analysisService.analyzeSymbol)
+      .mockResolvedValueOnce(makeAnalysis({ symbol: 'ASTERUSDC', timeframe: '1h', gridScore: 85 }))
+      .mockResolvedValueOnce(makeAnalysis({ symbol: 'ASTERUSDC', timeframe: '15m', gridScore: 85 }));
+
+    const result = await service.scan({ quoteCoin: 'USDC' });
+
+    expect(result.candidates.some((candidate) => candidate.symbol === 'ZKUSDC')).toBe(false);
+    expect(result.unresolvedSymbols).toEqual([{ symbol: 'ZKUSDC', reasonCode: 'MISSING_TICKER' }]);
+    expect(result.candidates[0]?.symbol).toBe('ASTERUSDC');
+  });
 });

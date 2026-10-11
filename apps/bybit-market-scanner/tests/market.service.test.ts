@@ -69,4 +69,35 @@ describe('market.service', () => {
     expect(vi.mocked(bybitClient.getSpotTicker)).toHaveBeenCalledWith('ASTERUSDC');
     expect(ticker.symbol).toBe('ASTERUSDC');
   });
+
+  it('skips a malformed ticker instead of failing the whole tickers batch', async () => {
+    const bybitClient = {
+      getSpotTickers: vi.fn().mockResolvedValue([
+        {
+          symbol: 'ASTERUSDC',
+          lastPrice: '0.71',
+          price24hPcnt: '0.01',
+          highPrice24h: '0.72',
+          lowPrice24h: '0.70',
+          volume24h: '10000',
+          turnover24h: '2000000'
+        },
+        {
+          symbol: 'ZKUSDC',
+          lastPrice: 'not-a-number',
+          price24hPcnt: '0.01',
+          highPrice24h: '0.02',
+          lowPrice24h: '0.01',
+          volume24h: '1000',
+          turnover24h: '10000'
+        }
+      ])
+    } as unknown as BybitClient;
+
+    const service = new MarketService(bybitClient, loadConfig());
+    const tickers = await service.getTickers();
+
+    expect(tickers).toHaveLength(1);
+    expect(tickers[0]?.symbol).toBe('ASTERUSDC');
+  });
 });

@@ -30,11 +30,7 @@ export class BybitClient {
     const cached = this.cache.get(cacheKey) as BybitInstrument[] | undefined;
     if (cached) return cached;
 
-    const response = await this.request<BybitInstrumentsResult>('/v5/market/instruments-info', {
-      category: 'spot'
-    });
-
-    const list = response.result.list;
+    const list = await this.fetchAllInstrumentPages();
     this.cache.set(cacheKey, list, this.config.instrumentsCacheTtlMs);
 
     const trading = list.filter((item) => item.status === 'Trading');
@@ -50,6 +46,46 @@ export class BybitClient {
     });
 
     return list;
+  }
+
+  /**
+   * Walks every page of /v5/market/instruments-info using nextPageCursor.
+   * Bybit returns an empty-string or absent cursor once the last page has
+   * been reached. A hard page cap guards against an API regression that
+   * could otherwise cause an infinite loop, and results are de-duplicated
+   * by symbol in case a page is ever returned twice.
+   */
+  private async fetchAllInstrumentPages(): Promise<BybitInstrument[]> {
+    const maxPages = 50;
+    const bySymbol = new Map<string, BybitInstrument>();
+    let cursor: string | undefined;
+    let pageCount = 0;
+
+    do {
+      const query: Record<string, string> = { category: 'spot', limit: '1000' };
+      if (cursor) query.cursor = cursor;
+
+      const response = await this.request<BybitInstrumentsResult>('/v5/market/instruments-info', query);
+      pageCount += 1;
+
+      for (const item of response.result.list) {
+        bySymbol.set(item.symbol, item);
+      }
+
+      const next = response.result.nextPageCursor;
+      cursor = next && next.length > 0 ? next : undefined;
+
+      if (cursor && pageCount >= maxPages) {
+        logger.info('bybit instrument pagination cap reached', {
+          bybitApiBaseUrl: this.baseUrl,
+          pageCount,
+          maxPages
+        });
+        break;
+      }
+    } while (cursor);
+
+    return [...bySymbol.values()];
   }
 
   async getSpotTickers(): Promise<BybitTicker[]> {

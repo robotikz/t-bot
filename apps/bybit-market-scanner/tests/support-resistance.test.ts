@@ -25,4 +25,75 @@ describe('support-resistance', () => {
     expect(result.distanceToSupportPercent).toBeGreaterThanOrEqual(0);
     expect(result.distanceToResistancePercent).toBeGreaterThanOrEqual(0);
   });
+
+  it('falls back to the min/max range on a perfectly flat market with no swing points', () => {
+    const flat = Array.from({ length: 10 }, (_, index) => ({
+      timestamp: index,
+      open: 100,
+      high: 100,
+      low: 100,
+      close: 100,
+      volume: 1,
+      turnover: 1,
+      isClosed: true
+    }));
+
+    const result = calculateSupportResistance(flat, 100, {
+      swingWindow: 1,
+      clusterPercent: 1,
+      minTouches: 1
+    });
+
+    expect(result.support).toBe(100);
+    expect(result.resistance).toBe(100);
+    expect(result.distanceToSupportPercent).toBe(0);
+    expect(result.distanceToResistancePercent).toBe(0);
+  });
+
+  it('does not let a single outlier wick get treated as a valid cluster level', () => {
+    const withOutlier = [
+      { timestamp: 1, open: 100, high: 102, low: 98, close: 100, volume: 1, turnover: 1, isClosed: true },
+      { timestamp: 2, open: 100, high: 103, low: 97, close: 101, volume: 1, turnover: 1, isClosed: true },
+      // Flash-wick outlier far above/below the normal trading band.
+      { timestamp: 3, open: 100, high: 500, low: 1, close: 100, volume: 1, turnover: 1, isClosed: true },
+      { timestamp: 4, open: 100, high: 102, low: 98, close: 100, volume: 1, turnover: 1, isClosed: true },
+      { timestamp: 5, open: 100, high: 103, low: 97, close: 101, volume: 1, turnover: 1, isClosed: true }
+    ];
+
+    // minTouches: 2 ensures a single-touch outlier swing cannot form a cluster level.
+    const result = calculateSupportResistance(withOutlier, 100, {
+      swingWindow: 1,
+      clusterPercent: 1,
+      minTouches: 2
+    });
+
+    expect(result.support).not.toBe(1);
+    expect(result.resistance).not.toBe(500);
+  });
+
+  it('reports zero resistance distance when a strong trend breaks to new highs with no established resistance', () => {
+    const uptrend = Array.from({ length: 15 }, (_, index) => ({
+      timestamp: index,
+      open: 100 + index,
+      high: 101 + index,
+      low: 99 + index,
+      close: 100.5 + index,
+      volume: 1,
+      turnover: 1,
+      isClosed: true
+    }));
+
+    // Price is at a fresh all-time high for this window: no historical
+    // level above it exists, so resistance distance is legitimately zero
+    // rather than collapsing to a stale/lower historical level.
+    const result = calculateSupportResistance(uptrend, 113, {
+      swingWindow: 1,
+      clusterPercent: 1,
+      minTouches: 1
+    });
+
+    expect(result.support).toBeLessThanOrEqual(113);
+    expect(result.distanceToResistancePercent).toBe(0);
+    expect(Number.isFinite(result.distanceToResistancePercent)).toBe(true);
+  });
 });

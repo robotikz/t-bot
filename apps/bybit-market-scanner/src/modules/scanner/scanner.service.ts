@@ -69,9 +69,20 @@ export class ScannerService {
     ]);
 
     const tickerBySymbol = new Map(tickers.map((ticker) => [ticker.symbol, ticker]));
+
+    // Instruments returned by instruments-info that have no matching ticker
+    // are explicitly unresolved (e.g. delisting in progress, symbol mismatch,
+    // or a malformed ticker payload that was dropped during mapping). They
+    // must be reported with an explicit reason code and must never silently
+    // become a CANDIDATE/WATCH/READY result.
+    const unresolvedSymbols: { symbol: string; reasonCode: 'MISSING_TICKER' }[] = [];
     const symbols = markets
       .map((market) => market.symbol)
-      .filter((symbol) => tickerBySymbol.has(symbol))
+      .filter((symbol) => {
+        if (tickerBySymbol.has(symbol)) return true;
+        unresolvedSymbols.push({ symbol, reasonCode: 'MISSING_TICKER' });
+        return false;
+      })
       .filter((symbol) => {
         const ticker = tickerBySymbol.get(symbol);
         return Boolean(ticker && ticker.turnover24h >= minTurnover);
@@ -135,7 +146,8 @@ export class ScannerService {
     return {
       timestamp: new Date().toISOString(),
       count: sorted.length,
-      candidates: sorted
+      candidates: sorted,
+      ...(unresolvedSymbols.length > 0 ? { unresolvedSymbols } : {})
     };
   }
 }

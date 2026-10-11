@@ -50,6 +50,7 @@ export type BybitKline = [
 export interface BybitInstrumentsResult {
   category: string;
   list: BybitInstrument[];
+  nextPageCursor?: string;
 }
 
 export interface BybitTickersResult {

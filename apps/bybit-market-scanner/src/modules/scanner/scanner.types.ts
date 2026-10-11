@@ -2,7 +2,8 @@ import type {
   CandidateStatus,
   ScanResult,
   ScannerCandidate,
-  ScannerWeights
+  ScannerWeights,
+  UnresolvedInstrument
 } from '@trading-platform/shared';
 
-export type { CandidateStatus, ScanResult, ScannerCandidate, ScannerWeights };
+export type { CandidateStatus, ScanResult, ScannerCandidate, ScannerWeights, UnresolvedInstrument };

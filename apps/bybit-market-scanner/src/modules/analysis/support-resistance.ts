@@ -61,15 +61,24 @@ function addToClusters(clusters: LevelCluster[], price: number, clusterPercent: 
   cluster.touches += 1;
 }
 
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const midValue = sorted[mid];
+  const midPrevValue = sorted[mid - 1];
+  if (midValue === undefined) return 0;
+  return sorted.length % 2 !== 0 ? midValue : ((midPrevValue ?? midValue) + midValue) / 2;
+}
+
+/**
+ * Used only when no swing-cluster support/resistance level qualifies.
+ * A raw min/max across all candles is dominated by a single flash-wick
+ * outlier candle, so the fallback instead uses the median low/high, which
+ * is robust to one (or a few) extreme outlier candles.
+ */
 function findFallbackRange(candles: Candle[]): { low: number; high: number } {
-  let low = Number.POSITIVE_INFINITY;
-  let high = Number.NEGATIVE_INFINITY;
-
-  for (const candle of candles) {
-    if (candle.low < low) low = candle.low;
-    if (candle.high > high) high = candle.high;
-  }
-
+  const low = median(candles.map((candle) => candle.low));
+  const high = median(candles.map((candle) => candle.high));
   return { low, high };
 }
 

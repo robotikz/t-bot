@@ -124,4 +124,10 @@ export interface ScanResult {
   timestamp: string;
   count: number;
   candidates: ScannerCandidate[];
+  unresolvedSymbols?: UnresolvedInstrument[];
+}
+
+export interface UnresolvedInstrument {
+  symbol: string;
+  reasonCode: 'MISSING_TICKER';
 }

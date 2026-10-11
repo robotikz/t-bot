@@ -57,7 +57,19 @@ export class MarketService {
   async getTickers(): Promise<MarketTicker[]> {
     const tickers = await this.bybitClient.getSpotTickers();
     const now = Date.now();
-    return tickers.map((ticker) => mapBybitTicker(ticker, now));
+    const mapped: MarketTicker[] = [];
+
+    for (const ticker of tickers) {
+      try {
+        mapped.push(mapBybitTicker(ticker, now));
+      } catch (error) {
+        // A single malformed ticker must not abort the whole batch; skip it
+        // and let callers treat the symbol as unresolved.
+        continue;
+      }
+    }
+
+    return mapped;
   }
 
   async getMarketTicker(symbol: string): Promise<MarketTicker> {
