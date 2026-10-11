@@ -116,7 +116,31 @@ describe('scanner.service', () => {
     expect(result.count).toBe(2);
     expect(result.candidates[0]?.symbol).toBe('BTCUSDC');
     expect(result.candidates[0]?.status).toBe('CANDIDATE');
-    expect(result.candidates[1]?.status).toBe('WATCH');
+    expect(result.candidates[1]?.status).toBe('REJECTED');
+  });
+
+  it('never ranks a hard-failed symbol above an eligible one, even with a higher score', async () => {
+    const config = { ...loadConfig(), topCandidates: 10 };
+    const service = new ScannerService(marketService, analysisService, config);
+    const mk = (symbol: string) => ({ symbol, baseCoin: symbol, quoteCoin: 'USDC', status: 'Trading' });
+    const tk = (symbol: string) => ({
+      symbol, lastPrice: 100, change24hPercent: 0, high24h: 101, low24h: 99,
+      volume24h: 1, turnover24h: 2_000_000, timestamp: Date.now()
+    });
+    vi.mocked(marketService.getMarketsByQuoteCoin).mockResolvedValue([mk('AAAUSDC'), mk('BBBUSDC')] as any);
+    vi.mocked(marketService.getTickers).mockResolvedValue([tk('AAAUSDC'), tk('BBBUSDC')] as any);
+    vi.mocked(marketService.getCandles).mockResolvedValue([]);
+    vi.mocked(analysisService.analyzeSymbol).mockImplementation(async (symbol: string) =>
+      symbol === 'AAAUSDC'
+        ? makeAnalysis({ symbol, gridScore: 99, rejectionReasons: ['INSUFFICIENT_CANDLES'] })
+        : makeAnalysis({ symbol, gridScore: 65 })
+    );
+
+    const result = await service.scan();
+
+    expect(result.candidates.map((c) => c.symbol)).toEqual(['BBBUSDC', 'AAAUSDC']);
+    expect(result.candidates[0]?.status).toBe('CANDIDATE');
+    expect(result.candidates[1]?.status).toBe('REJECTED');
   });
 
   it('keeps CANDIDATE status while entry timing waits for pullback at range high', async () => {

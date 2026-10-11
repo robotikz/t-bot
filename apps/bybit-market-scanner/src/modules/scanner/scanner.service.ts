@@ -19,7 +19,17 @@ function buildPositiveReasons(score: number, rejectionReasons: string[]): string
   return reasons;
 }
 
+// Mandatory data/liquidity failures can never be offset by a high score.
+const HARD_REJECTION_REASONS = new Set(['LOW_LIQUIDITY', 'INSUFFICIENT_CANDLES']);
+
+const STATUS_RANK: Record<ScannerCandidate['status'], number> = {
+  CANDIDATE: 0,
+  WATCH: 1,
+  REJECTED: 2
+};
+
 function resolveStatus(score: number, rejectionReasons: string[]): ScannerCandidate['status'] {
+  if (rejectionReasons.some((reason) => HARD_REJECTION_REASONS.has(reason))) return 'REJECTED';
   if (rejectionReasons.length === 0) return 'CANDIDATE';
   if (score >= 60) return 'WATCH';
   return 'REJECTED';
@@ -139,7 +149,7 @@ export class ScannerService {
     );
 
     const sorted = [...candidates]
-      .sort((a, b) => b.score - a.score)
+      .sort((a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status] || b.score - a.score)
       .slice(0, topLimit)
       .map((item) => ({ ...item, score: Number(item.score.toFixed(4)) }));
 
