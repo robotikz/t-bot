@@ -6,7 +6,7 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "node ./scripts/test.js"
   },
   "private": true,
   "packageManager": "pnpm@12.3.4",

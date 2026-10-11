@@ -262,6 +262,7 @@ describe('ScannerComponent', () => {
     api.scan.mockReturnValueOnce(throwError(() => new Error('backend failed')));
 
     fixture.detectChanges();
+    component.form.controls.minTurnover.setValue(100000);
     component.scan();
     await fixture.whenStable();
     fixture.detectChanges();
