@@ -87,8 +87,8 @@ export class ScannerService {
         }
 
         const [primaryAnalysis, secondaryAnalysis, candles15m] = await Promise.all([
-          this.analysisService.analyzeSymbol(symbol, primaryTimeframe),
-          this.analysisService.analyzeSymbol(symbol, secondaryTimeframe),
+          this.analysisService.analyzeSymbol(symbol, primaryTimeframe, { minTurnover }),
+          this.analysisService.analyzeSymbol(symbol, secondaryTimeframe, { minTurnover }),
           this.marketService.getCandles(symbol, '15m', 80)
         ]);
 
@@ -98,9 +98,9 @@ export class ScannerService {
         ]);
 
         const analysis1h =
-          analysisByTimeframe.get('1h') ?? (await this.analysisService.analyzeSymbol(symbol, '1h'));
+          analysisByTimeframe.get('1h') ?? (await this.analysisService.analyzeSymbol(symbol, '1h', { minTurnover }));
         const analysis15m =
-          analysisByTimeframe.get('15m') ?? (await this.analysisService.analyzeSymbol(symbol, '15m'));
+          analysisByTimeframe.get('15m') ?? (await this.analysisService.analyzeSymbol(symbol, '15m', { minTurnover }));
 
         const score = primaryAnalysis.gridScore * 0.7 + secondaryAnalysis.gridScore * 0.3;
         const rejectionReasons = Array.from(

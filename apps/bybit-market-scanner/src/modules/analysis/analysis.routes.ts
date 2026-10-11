@@ -18,7 +18,10 @@ export function registerAnalysisRoutes(app: FastifyInstance, analysisService: An
     const symbol = params.symbol.toUpperCase();
     const timeframe = parseTimeframe(query.timeframe);
 
-    const data = await analysisService.analyzeSymbol(symbol, timeframe);
+    const minTurnover = request.query && (request.query as any).minTurnover ? Number((request.query as any).minTurnover) : undefined;
+    const data = await analysisService.analyzeSymbol(symbol, timeframe, {
+      minTurnover: Number.isFinite(minTurnover) ? minTurnover : undefined
+    });
     return { data };
   });
 }

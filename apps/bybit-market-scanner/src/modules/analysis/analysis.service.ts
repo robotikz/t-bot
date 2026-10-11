@@ -28,7 +28,11 @@ export class AnalysisService {
     private readonly config: AppConfig
   ) {}
 
-  async analyzeSymbol(symbol: string, timeframe: Timeframe): Promise<MarketAnalysis> {
+  async analyzeSymbol(
+    symbol: string,
+    timeframe: Timeframe,
+    options?: { minTurnover?: number }
+  ): Promise<MarketAnalysis> {
     const [ticker, candles] = await Promise.all([
       this.marketService.getMarketTicker(symbol),
       this.marketService.getCandles(symbol, timeframe, this.config.analysisCandleLimit)
@@ -47,7 +51,8 @@ export class AnalysisService {
 
     const rejectionReasons: string[] = [];
 
-    if (ticker.turnover24h < this.config.minTurnover24hUsdt) {
+    const minTurnover = options?.minTurnover ?? this.config.minTurnover24hUsdt;
+    if (ticker.turnover24h < minTurnover) {
       rejectionReasons.push('LOW_LIQUIDITY');
     }
 
