@@ -591,15 +591,18 @@ describe('ScannerComponent', () => {
   it('returns NO_ENTRY when liquidity is below threshold', async () => {
     api.getAnalysis.mockImplementation((symbol: string, timeframe: '1h' | '15m') =>
       of(
+        // The component's default `minTurnover` is 25000. This fixture uses
+        // `turnover24h: 15000` to intentionally represent insufficient liquidity
+        // so the component should mark the execution `NO_ENTRY` for liquidity.
         timeframe === '1h'
           ? createUsdcAnalysis('1h', {
-              turnover24h: 45000,
+              turnover24h: 15000,
               trendDirection: 'SIDEWAYS',
               volatilityPercent: 1.2,
               positionInRangePercent: 50,
             })
           : createUsdcAnalysis('15m', {
-              turnover24h: 45000,
+              turnover24h: 15000,
               trendDirection: 'SIDEWAYS',
               volatilityPercent: 0.8,
               positionInRangePercent: 48,
@@ -612,6 +615,37 @@ describe('ScannerComponent', () => {
     await fixture.whenStable();
 
     expect(component.usdcExecution?.status).toBe('NO_ENTRY');
+  });
+
+  it('treats turnover equal to minTurnover as sufficient (boundary)', async () => {
+    // Boundary: turnover == component default minTurnover (25000) should not
+    // fail the liquidity check when other conditions are suitable for READY.
+    api.getAnalysis.mockImplementation((symbol: string, timeframe: '1h' | '15m') =>
+      of(
+        timeframe === '1h'
+          ? createUsdcAnalysis('1h', {
+              turnover24h: 25000,
+              trendDirection: 'SIDEWAYS',
+              positionInRangePercent: 50,
+              distanceToSupportPercent: 1.8,
+              distanceToResistancePercent: 3,
+            })
+          : createUsdcAnalysis('15m', {
+              turnover24h: 25000,
+              trendDirection: 'UP',
+              positionInRangePercent: 44,
+              distanceToSupportPercent: 1.1,
+              distanceToResistancePercent: 2.9,
+              volatilityPercent: 1.2,
+            }),
+      ),
+    );
+
+    fixture.detectChanges();
+    component.scan();
+    await fixture.whenStable();
+
+    expect(component.usdcExecution?.status).toBe('READY');
   });
 
   it('returns READY after breakout retest success pattern', async () => {
