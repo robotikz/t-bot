@@ -67,5 +67,10 @@ describe('Signalizer PostgreSQL concurrency integration', () => {
     expect(readyToWatch.length).toBe(1);
     // history should contain initial + two concurrent = at least 2 records
     expect(history.length).toBeGreaterThanOrEqual(2);
+
+    // ensure the transition references the WATCH observation
+    const watchObs = history.find((h) => h.currentState === 'WATCH');
+    expect(watchObs).toBeDefined();
+    expect(readyToWatch[0].observationId).toBe(watchObs!.id);
   });
 });

@@ -82,6 +82,24 @@ export class SignalizerService {
     const prismaService: any = (this as any).prismaService ?? (this as any).prisma ?? null;
 
     if (prismaService && typeof prismaService.$transaction === 'function') {
+      // Determine the correct physical table name for SignalObservation so
+      // raw locking queries use an existing relation. This checks common
+      // variants and falls back to the model name if none found.
+      let observationTableName = '"SignalObservation"';
+      try {
+        const tbls: any = await prismaService.$queryRaw`
+          SELECT to_regclass('public."SignalObservation"') as t1,
+                 to_regclass('public.signal_observation') as t2,
+                 to_regclass('public."signalObservation"') as t3
+        `;
+        const row = Array.isArray(tbls) && tbls.length > 0 ? tbls[0] : tbls;
+        if (row && row.t2) observationTableName = 'signal_observation';
+        else if (row && row.t3) observationTableName = '"signalObservation"';
+        else if (row && row.t1) observationTableName = '"SignalObservation"';
+      } catch (e) {
+        observationTableName = '"SignalObservation"';
+      }
+
       // Use SERIALIZABLE transactions with bounded retry to ensure per-symbol
       // serialization under concurrent observations. Read-before-insert and
       // transition creation happen inside the transaction. This avoids adding
@@ -93,6 +111,12 @@ export class SignalizerService {
         try {
           const result = await prismaService.$transaction(
             async (tx: any) => {
+              // Acquire a row-level lock on the latest observation for this symbol
+              // so concurrent transactions serialize when processing the same symbol.
+              // This avoids creating duplicate transitions when two observations
+              // are processed concurrently for the same previous state.
+              const lockSql = `SELECT id FROM ${observationTableName} WHERE "symbol" = $1 ORDER BY "observedAt" DESC LIMIT 1 FOR UPDATE`;
+              await tx.$queryRawUnsafe(lockSql, symbolNorm);
               const last = await this.historyRepo.findLatestBySymbol(symbolNorm, tx);
               const prevState = last?.currentState ?? null;
 
