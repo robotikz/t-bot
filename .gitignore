@@ -1,3 +1,5 @@
 node_modules
 *.tsbuildinfo
 *.tsconfig.build.tsbuildinfo
+*.tmp_api.log
+*.tmp_api.pid
