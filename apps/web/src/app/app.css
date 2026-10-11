@@ -11,6 +11,12 @@
   box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
 }
 
+/* Ensure the navigation toolbar has sufficient contrast */
+.mat-toolbar {
+  background-color: #0b1220; /* dark navy for strong contrast */
+  color: #ffffff;
+}
+
 .nav {
   margin-left: auto;
   display: flex;
@@ -18,7 +24,7 @@
 }
 
 .nav button {
-  color: rgba(255, 255, 255, 0.8);
+  color: #ffffff;
 }
 
 .nav button.active-tab {
