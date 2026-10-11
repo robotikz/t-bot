@@ -120,12 +120,12 @@ export function calculateSupportResistance(
   const supportLevel =
     lowClusters
       .filter((item) => item.price <= price)
-      .sort((a, b) => b.touches - a.touches || b.price - a.price)[0]?.price ?? fallback.low;
+      .sort((a, b) => b.touches - a.touches || b.price - a.price)[0]?.price ?? Math.min(fallback.low, price);
 
   const resistanceLevel =
     highClusters
       .filter((item) => item.price >= price)
-      .sort((a, b) => b.touches - a.touches || a.price - b.price)[0]?.price ?? fallback.high;
+      .sort((a, b) => b.touches - a.touches || a.price - b.price)[0]?.price ?? Math.max(fallback.high, price);
 
   const distanceToSupportPercent = ((price - supportLevel) / price) * 100;
   const distanceToResistancePercent = ((resistanceLevel - price) / price) * 100;

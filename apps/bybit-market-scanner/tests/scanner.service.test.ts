@@ -143,6 +143,37 @@ describe('scanner.service', () => {
     expect(result.candidates[1]?.status).toBe('REJECTED');
   });
 
+  it('forces REJECTED for LOW_LIQUIDITY and topLimit keeps eligible candidates over higher-scored rejects', async () => {
+    const config = { ...loadConfig(), topCandidates: 1 };
+    const service = new ScannerService(marketService, analysisService, config);
+    const mk = (symbol: string) => ({ symbol, baseCoin: symbol, quoteCoin: 'USDC', status: 'Trading' });
+    const tk = (symbol: string) => ({
+      symbol, lastPrice: 100, change24hPercent: 0, high24h: 101, low24h: 99,
+      volume24h: 1, turnover24h: 2_000_000, timestamp: Date.now()
+    });
+    vi.mocked(marketService.getMarketsByQuoteCoin).mockResolvedValue(
+      [mk('AAAUSDC'), mk('BBBUSDC'), mk('CCCUSDC')] as any
+    );
+    vi.mocked(marketService.getTickers).mockResolvedValue([tk('AAAUSDC'), tk('BBBUSDC'), tk('CCCUSDC')] as any);
+    vi.mocked(marketService.getCandles).mockResolvedValue([]);
+    vi.mocked(analysisService.analyzeSymbol).mockImplementation(async (symbol: string) => {
+      if (symbol === 'AAAUSDC') return makeAnalysis({ symbol, gridScore: 100, rejectionReasons: ['LOW_LIQUIDITY'] });
+      if (symbol === 'BBBUSDC') return makeAnalysis({ symbol, gridScore: 90, rejectionReasons: ['RANGE_OUT_OF_BOUNDS'] });
+      return makeAnalysis({ symbol, gridScore: 50 });
+    });
+
+    const result = await service.scan({ limit: 1 });
+    expect(result.candidates.map((x) => x.symbol)).toEqual(['CCCUSDC']);
+    expect(result.candidates[0]?.status).toBe('CANDIDATE');
+
+    const all = await service.scan({ limit: 10 });
+    expect(all.candidates.map((x) => [x.symbol, x.status])).toEqual([
+      ['CCCUSDC', 'CANDIDATE'],
+      ['BBBUSDC', 'WATCH'],
+      ['AAAUSDC', 'REJECTED']
+    ]);
+  });
+
   it('keeps CANDIDATE status while entry timing waits for pullback at range high', async () => {
     const config = { ...loadConfig(), topCandidates: 5 };
     const service = new ScannerService(marketService, analysisService, config);
