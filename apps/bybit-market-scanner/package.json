@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "backtest": "tsx src/modules/backtest/run-backtest.ts",
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
