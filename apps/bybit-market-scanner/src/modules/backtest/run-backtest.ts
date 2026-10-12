@@ -1,5 +1,6 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile, readdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import type { MarketInstrument } from '@trading-platform/shared';
 import { loadConfig } from '../../config/config.js';
 import { BybitClient } from '../bybit/bybit.client.js';
 import { mapBybitInstrument } from '../bybit/bybit.mapper.js';
@@ -38,7 +39,26 @@ async function main(): Promise<void> {
   const log = (m: string) => console.log(m);
   log(`baseUrl=${config.bybitBaseUrl} quote=${quoteCoin} start=${new Date(startMs).toISOString()} cutoff=${new Date(cutoffMs).toISOString()}`);
 
-  const instruments = (await new BybitClient(config).getSpotInstruments()).map(mapBybitInstrument);
+  let instruments: MarketInstrument[] = [];
+  if (flag('offline')) {
+    // In offline mode derive the instrument universe from cached candle files.
+    // Expect files like <SYMBOL>_<timeframe>.json under `${cacheDir}/candles`.
+    try {
+      const files = await readdir(join(cacheDir, 'candles'));
+      const jsonFiles = files.filter((f) => f.endsWith('.json'));
+      instruments = jsonFiles.map((f) => {
+        const sym = f.split('_')[0];
+        return { symbol: sym, status: 'Trading', quoteCoin } as MarketInstrument;
+      });
+      if (instruments.length === 0) throw new Error('no cached candle files');
+    } catch (err) {
+      throw new Error(
+        `Offline mode: no cached candles found in ${join(cacheDir, 'candles')} or directory unreadable. Populate cache or run without --offline.`
+      );
+    }
+  } else {
+    instruments = (await new BybitClient(config).getSpotInstruments()).map(mapBybitInstrument);
+  }
   const backfill = flag('offline') ? null : new BybitKlineBackfill({ baseUrl: config.bybitBaseUrl });
   const symbols = arg('symbols')?.split(',').map((s) => s.trim().toUpperCase());
 
