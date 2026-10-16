@@ -96,11 +96,23 @@ export class ScannerComponent {
   isLoading = false;
   errorMessage = '';
   candidates: ScannerCandidate[] = [];
+  // keep original scanned order for stable sorting reset
+  private scannedCandidates: ScannerCandidate[] = [];
   selectedCandidate: ScannerCandidate | null = null;
   usdcExecution: UsdcExecutionSection | null = null;
   private spotInstruments: MarketInstrument[] | null = null;
   private spotInstrumentsRequest$: Observable<MarketInstrument[]> | null = null;
   private executionMarketResolver: ExecutionMarketResolver | null = null;
+  // table sorting state
+  sortColumn: string | null = 'score';
+  sortDirection: 'asc' | 'desc' | null = 'desc';
+  // modal state
+  isAnalysisModalOpen = false;
+  // simple toast messages
+  toasts: { id: number; message: string; type?: 'info' | 'error' }[] = [];
+  private toastSeq = 0;
+  // expandable sections per symbol
+  expandedSections: Record<string, Record<string, boolean>> = {};
 
   constructor() {
     this.scannerService.getQuoteCoins().pipe(
@@ -151,10 +163,13 @@ export class ScannerComponent {
 
     this.scannerService.scan(query).subscribe({
       next: (result) => {
-        const candidates = Array.isArray(result?.candidates) ? [...result.candidates].sort((left, right) => right.score - left.score) : [];
+        const candidates = Array.isArray(result?.candidates) ? [...result.candidates] : [];
 
-        this.candidates = candidates;
-        this.selectedCandidate = candidates[0] ?? null;
+        // preserve original scanned order and apply initial default sort (score desc)
+        this.scannedCandidates = candidates.slice();
+        this.applySort();
+
+        this.selectedCandidate = this.candidates[0] ?? null;
         if (this.selectedCandidate) {
           this.loadUsdcExecution(this.selectedCandidate);
         } else {
@@ -180,6 +195,20 @@ export class ScannerComponent {
     this.selectedCandidate = candidate;
     this.loadUsdcExecution(candidate);
     this.cdr.markForCheck();
+  }
+
+  onRowClick(candidate: ScannerCandidate, event: MouseEvent): void {
+    // prevent opening modal when clicking on buttons/links inside row
+    const target = event.target as HTMLElement | null;
+    if (target) {
+      const actionable = target.closest('button, a, [data-no-modal]');
+      if (actionable) {
+        return;
+      }
+    }
+
+    this.selectCandidate(candidate);
+    this.openAnalysisModal();
   }
 
   isSelected(candidate: ScannerCandidate): boolean {
@@ -267,10 +296,150 @@ export class ScannerComponent {
     }
 
     if (!navigator.clipboard) {
+      this.showToast('Clipboard not available', 'error');
       return;
     }
 
-    void navigator.clipboard.writeText(this.analysisText);
+    void navigator.clipboard.writeText(this.analysisText).then(
+      () => this.showToast('Copied to clipboard', 'info'),
+      () => this.showToast('Failed to copy to clipboard', 'error'),
+    );
+  }
+
+  showToast(message: string, type: 'info' | 'error' = 'info', timeout = 2000): void {
+    const id = ++this.toastSeq;
+    this.toasts.push({ id, message, type });
+    setTimeout(() => {
+      this.toasts = this.toasts.filter((t) => t.id !== id);
+      this.cdr.markForCheck();
+    }, timeout);
+    this.cdr.markForCheck();
+  }
+
+  openAnalysisModal(): void {
+    this.isAnalysisModalOpen = true;
+    // ensure sections expanded default for this symbol
+    const sym = this.selectedCandidate?.symbol ?? '__none__';
+    if (!this.expandedSections[sym]) {
+      this.expandedSections[sym] = {
+        marketSummary: true,
+        h1: true,
+        m15: true,
+        reasons: true,
+        execution: true,
+      };
+    }
+    this.cdr.markForCheck();
+  }
+
+  closeAnalysisModal(): void {
+    this.isAnalysisModalOpen = false;
+    this.cdr.markForCheck();
+  }
+
+  toggleSection(symbol: string, section: string): void {
+    const s = this.expandedSections[symbol] ?? {};
+    s[section] = !s[section];
+    this.expandedSections[symbol] = s;
+    this.cdr.markForCheck();
+  }
+
+  isSectionExpanded(symbol: string, section: string): boolean {
+    const s = this.expandedSections[symbol];
+    if (!s) return true; // default expanded
+    return !!s[section];
+  }
+
+  // Sorting
+  applySort(): void {
+    const col = this.sortColumn;
+    const dir = this.sortDirection;
+    const source = this.scannedCandidates.slice();
+    if (!col || !dir) {
+      this.candidates = source;
+      return;
+    }
+
+    const withIndex = source.map((v, i) => ({ v, i }));
+
+    withIndex.sort((a, b) => {
+      const left = a.v as any;
+      const right = b.v as any;
+      let av: any = null;
+      let bv: any = null;
+
+      switch (col) {
+        case 'symbol':
+          av = (left.symbol ?? '') as string;
+          bv = (right.symbol ?? '') as string;
+          break;
+        case 'price':
+          av = left.market?.lastPrice ?? Number.NEGATIVE_INFINITY;
+          bv = right.market?.lastPrice ?? Number.NEGATIVE_INFINITY;
+          break;
+        case 'change24hPercent':
+          av = left.market?.change24hPercent ?? Number.NEGATIVE_INFINITY;
+          bv = right.market?.change24hPercent ?? Number.NEGATIVE_INFINITY;
+          break;
+        case 'turnover24h':
+          av = left.market?.turnover24h ?? Number.NEGATIVE_INFINITY;
+          bv = right.market?.turnover24h ?? Number.NEGATIVE_INFINITY;
+          break;
+        case 'range1h':
+          av = left.analysis1h?.rangePercent ?? Number.NEGATIVE_INFINITY;
+          bv = right.analysis1h?.rangePercent ?? Number.NEGATIVE_INFINITY;
+          break;
+        case 'score':
+          av = left.score ?? Number.NEGATIVE_INFINITY;
+          bv = right.score ?? Number.NEGATIVE_INFINITY;
+          break;
+        case 'entryScore':
+          av = this.candidateEntryScore(left) ?? Number.NEGATIVE_INFINITY;
+          bv = this.candidateEntryScore(right) ?? Number.NEGATIVE_INFINITY;
+          break;
+        default:
+          av = left[col] ?? '';
+          bv = right[col] ?? '';
+      }
+
+      // handle nulls
+      const na = av === null || av === undefined || Number.isNaN(av);
+      const nb = bv === null || bv === undefined || Number.isNaN(bv);
+      if (na && nb) return a.i - b.i; // stable
+      if (na) return 1;
+      if (nb) return -1;
+
+      if (typeof av === 'string' && typeof bv === 'string') {
+        const cmp = av.localeCompare(bv);
+        return dir === 'asc' ? cmp || a.i - b.i : -cmp || a.i - b.i;
+      }
+
+      if (av < bv) return dir === 'asc' ? -1 : 1;
+      if (av > bv) return dir === 'asc' ? 1 : -1;
+      return a.i - b.i;
+    });
+
+    this.candidates = withIndex.map((x) => x.v);
+  }
+
+  sortBy(column: string): void {
+    if (this.sortColumn === column) {
+      if (this.sortDirection === 'asc') this.sortDirection = 'desc';
+      else if (this.sortDirection === 'desc') this.sortDirection = null;
+      else this.sortDirection = 'asc';
+    } else {
+      this.sortColumn = column;
+      this.sortDirection = 'asc';
+    }
+
+    // if no direction, reset to scanned order
+    if (!this.sortDirection) {
+      this.candidates = this.scannedCandidates.slice();
+    } else {
+      this.applySort();
+    }
+
+    this.cdr.markForCheck();
   }
 
   statusClass(status: ScannerCandidate['status']): string {
