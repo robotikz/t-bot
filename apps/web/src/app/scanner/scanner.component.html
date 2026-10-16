@@ -84,7 +84,11 @@
         <thead>
           <tr>
             <th>#</th>
-            <th>Status</th>
+            <th (click)="sortBy('status')" class="sortable">Status
+              @if (sortColumn === 'status') {
+                <span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>
+              }
+            </th>
             <th (click)="sortBy('symbol')" class="sortable">Symbol
               @if (sortColumn === 'symbol') {
                 <span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>
@@ -127,7 +131,11 @@
                 <span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>
               }
             </th>
-            <th>Entry</th>
+            <th (click)="sortBy('entry')" class="sortable">Entry
+              @if (sortColumn === 'entry') {
+                <span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>
+              }
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -160,6 +168,30 @@
   }
 
   <!-- Analysis modal removed temporarily to fix template parsing; modal content available in details section below. -->
+@if (isAnalysisModalOpen) {
+  <div class="analysis-modal-backdrop" role="dialog" aria-modal="true">
+    <div class="analysis-modal" tabindex="-1">
+      <header class="analysis-modal-header">
+        <h2>{{ selectedCandidate?.symbol }}</h2>
+        <div class="analysis-meta">
+          <span>Price: {{ selectedCandidate?.market.lastPrice | number: '1.2-4' }}</span>
+          <span>Status: <strong [ngClass]="statusClass(selectedCandidate?.status || 'REJECTED')">{{ selectedCandidate?.status }}</strong></span>
+          <span>Score: {{ selectedCandidate?.score | number: '1.2-2' }}</span>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="copy-button" (click)="copyAnalysis()">Copy for Analysis</button>
+          <button type="button" class="modal-close" (click)="closeAnalysisModal()">Close</button>
+        </div>
+      </header>
+
+      <div class="analysis-modal-body">
+        <section class="modal-analysis">
+          <pre>{{ analysisText }}</pre>
+        </section>
+      </div>
+    </div>
+  </div>
+}
 
   @if (selectedCandidate; as candidate) {
     <section class="details">
@@ -325,54 +357,70 @@
       </section>
 
       <div class="detail-grid">
-        <div class="summary-card">
-          <h3>Market summary</h3>
-          <p>Price: {{ candidate.market.lastPrice | number: '1.2-4' }}</p>
-          <p>24h Change: {{ candidate.market.change24hPercent >= 0 ? '+' : '' }}{{ candidate.market.change24hPercent | number: '1.1-2' }}%</p>
-          <p>24h Turnover: {{ candidate.market.turnover24h | number: '1.0-0' }}</p>
-          <p>Status: {{ candidate.status }}</p>
-          <p>Market score: {{ candidate.score | number: '1.2-2' }}</p>
-          <p>Entry score: {{ candidateEntryScore(candidate) | number: '1.0-0' }}</p>
-          <p>Entry timing: {{ candidateEntryTiming(candidate) }}</p>
+        <div class="panel">
+          <div class="panel-header" (click)="toggleSection(candidate.symbol,'marketSummary')">Market summary <span class="panel-indicator">{{ isSectionExpanded(candidate.symbol,'marketSummary') ? '−' : '+' }}</span></div>
+          @if (isSectionExpanded(candidate.symbol,'marketSummary')) {
+            <div class="panel-body">
+              <p>Price: {{ candidate.market.lastPrice | number: '1.2-4' }}</p>
+              <p>24h Change: {{ candidate.market.change24hPercent >= 0 ? '+' : '' }}{{ candidate.market.change24hPercent | number: '1.1-2' }}%</p>
+              <p>24h Turnover: {{ candidate.market.turnover24h | number: '1.0-0' }}</p>
+              <p>Status: {{ candidate.status }}</p>
+              <p>Market score: {{ candidate.score | number: '1.2-2' }}</p>
+              <p>Entry score: {{ candidateEntryScore(candidate) | number: '1.0-0' }}</p>
+              <p>Entry timing: {{ candidateEntryTiming(candidate) }}</p>
+            </div>
+          }
         </div>
 
-        <div class="summary-card">
-          <h3>1H</h3>
-          <p>Support: {{ candidate.analysis1h?.support | number: '1.2-4' }}</p>
-          <p>Resistance: {{ candidate.analysis1h?.resistance | number: '1.2-4' }}</p>
-          <p>Range: {{ candidate.analysis1h?.rangePercent | number: '1.1-2' }}%</p>
-          <p>Position: {{ candidate.analysis1h?.positionInRangePercent | number: '1.0-0' }}%</p>
-          <p>Volatility: {{ candidate.analysis1h?.volatilityPercent | number: '1.1-2' }}%</p>
-          <p>Trend: {{ candidate.analysis1h?.trendDirection ?? 'N/A' }}</p>
-          <p>Score: {{ candidate.analysis1h?.gridScore | number: '1.2-2' }}</p>
+        <div class="panel">
+          <div class="panel-header" (click)="toggleSection(candidate.symbol,'h1')">1H <span class="panel-indicator">{{ isSectionExpanded(candidate.symbol,'h1') ? '−' : '+' }}</span></div>
+          @if (isSectionExpanded(candidate.symbol,'h1')) {
+            <div class="panel-body">
+              <p>Support: {{ candidate.analysis1h?.support | number: '1.2-4' }}</p>
+              <p>Resistance: {{ candidate.analysis1h?.resistance | number: '1.2-4' }}</p>
+              <p>Range: {{ candidate.analysis1h?.rangePercent | number: '1.1-2' }}%</p>
+              <p>Position: {{ candidate.analysis1h?.positionInRangePercent | number: '1.0-0' }}%</p>
+              <p>Volatility: {{ candidate.analysis1h?.volatilityPercent | number: '1.1-2' }}%</p>
+              <p>Trend: {{ candidate.analysis1h?.trendDirection ?? 'N/A' }}</p>
+              <p>Score: {{ candidate.analysis1h?.gridScore | number: '1.2-2' }}</p>
+            </div>
+          }
         </div>
 
-        <div class="summary-card">
-          <h3>15M</h3>
-          <p>Support: {{ candidate.analysis15m?.support | number: '1.2-4' }}</p>
-          <p>Resistance: {{ candidate.analysis15m?.resistance | number: '1.2-4' }}</p>
-          <p>Range: {{ candidate.analysis15m?.rangePercent | number: '1.1-2' }}%</p>
-          <p>Position: {{ candidate.analysis15m?.positionInRangePercent | number: '1.0-0' }}%</p>
-          <p>Volatility: {{ candidate.analysis15m?.volatilityPercent | number: '1.1-2' }}%</p>
-          <p>Trend: {{ candidate.analysis15m?.trendDirection ?? 'N/A' }}</p>
-          <p>Score: {{ candidate.analysis15m?.gridScore | number: '1.2-2' }}</p>
+        <div class="panel">
+          <div class="panel-header" (click)="toggleSection(candidate.symbol,'m15')">15M <span class="panel-indicator">{{ isSectionExpanded(candidate.symbol,'m15') ? '−' : '+' }}</span></div>
+          @if (isSectionExpanded(candidate.symbol,'m15')) {
+            <div class="panel-body">
+              <p>Support: {{ candidate.analysis15m?.support | number: '1.2-4' }}</p>
+              <p>Resistance: {{ candidate.analysis15m?.resistance | number: '1.2-4' }}</p>
+              <p>Range: {{ candidate.analysis15m?.rangePercent | number: '1.1-2' }}%</p>
+              <p>Position: {{ candidate.analysis15m?.positionInRangePercent | number: '1.0-0' }}%</p>
+              <p>Volatility: {{ candidate.analysis15m?.volatilityPercent | number: '1.1-2' }}%</p>
+              <p>Trend: {{ candidate.analysis15m?.trendDirection ?? 'N/A' }}</p>
+              <p>Score: {{ candidate.analysis15m?.gridScore | number: '1.2-2' }}</p>
+            </div>
+          }
         </div>
 
-        <div class="summary-card">
-          <h3>Reasons</h3>
-          <ul>
-            @for (reason of candidate.reasons; track $index) {
-              <li>{{ reason }}</li>
-            }
-          </ul>
+        <div class="panel">
+          <div class="panel-header" (click)="toggleSection(candidate.symbol,'reasons')">Reasons <span class="panel-indicator">{{ isSectionExpanded(candidate.symbol,'reasons') ? '−' : '+' }}</span></div>
+          @if (isSectionExpanded(candidate.symbol,'reasons')) {
+            <div class="panel-body">
+              <ul>
+                @for (reason of candidate.reasons; track $index) {
+                  <li>{{ reason }}</li>
+                }
+              </ul>
 
-          @if (candidate.rejectionReasons.length > 0) {
-            <p class="rejections-label">Rejection reasons:</p>
-            <ul>
-              @for (reason of candidate.rejectionReasons; track $index) {
-                <li>{{ reason }}</li>
+              @if (candidate.rejectionReasons.length > 0) {
+                <p class="rejections-label">Rejection reasons:</p>
+                <ul>
+                  @for (reason of candidate.rejectionReasons; track $index) {
+                    <li>{{ reason }}</li>
+                  }
+                </ul>
               }
-            </ul>
+            </div>
           }
         </div>
       </div>

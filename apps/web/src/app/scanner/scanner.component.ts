@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, HostListener, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { catchError, forkJoin, map, of, Observable, shareReplay, switchMap, tap } from 'rxjs';
 import { createExecutionMarketResolver, ExecutionMarketResolution, ExecutionMarketResolver } from './execution-market-resolver';
@@ -193,6 +193,17 @@ export class ScannerComponent {
 
   selectCandidate(candidate: ScannerCandidate): void {
     this.selectedCandidate = candidate;
+    // ensure expanded sections default for this symbol
+    const sym = candidate?.symbol ?? '__none__';
+    if (!this.expandedSections[sym]) {
+      this.expandedSections[sym] = {
+        marketSummary: true,
+        h1: true,
+        m15: true,
+        reasons: true,
+        execution: true,
+      };
+    }
     this.loadUsdcExecution(candidate);
     this.cdr.markForCheck();
   }
@@ -330,11 +341,23 @@ export class ScannerComponent {
       };
     }
     this.cdr.markForCheck();
+    // focus modal for accessibility
+    setTimeout(() => {
+      const el = document.querySelector('.analysis-modal') as HTMLElement | null;
+      el?.focus();
+    }, 0);
   }
 
   closeAnalysisModal(): void {
     this.isAnalysisModalOpen = false;
     this.cdr.markForCheck();
+  }
+
+  @HostListener('window:keydown', ['$event'])
+  handleKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape' && this.isAnalysisModalOpen) {
+      this.closeAnalysisModal();
+    }
   }
 
   toggleSection(symbol: string, section: string): void {
@@ -388,6 +411,14 @@ export class ScannerComponent {
         case 'range1h':
           av = left.analysis1h?.rangePercent ?? Number.NEGATIVE_INFINITY;
           bv = right.analysis1h?.rangePercent ?? Number.NEGATIVE_INFINITY;
+          break;
+        case 'status':
+          av = (left.status ?? '') as string;
+          bv = (right.status ?? '') as string;
+          break;
+        case 'entry':
+          av = (this.candidateEntryTiming(left) ?? '') as string;
+          bv = (this.candidateEntryTiming(right) ?? '') as string;
           break;
         case 'score':
           av = left.score ?? Number.NEGATIVE_INFINITY;
