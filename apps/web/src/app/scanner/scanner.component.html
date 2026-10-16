@@ -168,30 +168,15 @@
   }
 
   <!-- Analysis modal removed temporarily to fix template parsing; modal content available in details section below. -->
-@if (isAnalysisModalOpen) {
-  <div class="analysis-modal-backdrop" role="dialog" aria-modal="true">
-    <div class="analysis-modal" tabindex="-1">
-      <header class="analysis-modal-header">
-        <h2>{{ selectedCandidate?.symbol }}</h2>
-        <div class="analysis-meta">
-          <span>Price: {{ selectedCandidate?.market.lastPrice | number: '1.2-4' }}</span>
-          <span>Status: <strong [ngClass]="statusClass(selectedCandidate?.status || 'REJECTED')">{{ selectedCandidate?.status }}</strong></span>
-          <span>Score: {{ selectedCandidate?.score | number: '1.2-2' }}</span>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="copy-button" (click)="copyAnalysis()">Copy for Analysis</button>
-          <button type="button" class="modal-close" (click)="closeAnalysisModal()">Close</button>
-        </div>
-      </header>
-
-      <div class="analysis-modal-body">
-        <section class="modal-analysis">
-          <pre>{{ analysisText }}</pre>
-        </section>
-      </div>
-    </div>
-  </div>
-}
+<app-coin-analysis-modal
+  *ngIf="isAnalysisModalOpen"
+  [candidate]="selectedCandidate"
+  [usdcExecution]="usdcExecution"
+  [analysisText]="analysisText"
+  (close)="closeAnalysisModal()"
+  (copy)="copyFromModal($event)"
+  (notify)="showToast($event.message, $event.type)"
+></app-coin-analysis-modal>
 
   @if (selectedCandidate; as candidate) {
     <section class="details">

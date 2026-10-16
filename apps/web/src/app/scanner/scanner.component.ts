@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, HostListener, inject } from '@angular/core';
+import { CoinAnalysisModalComponent } from './coin-analysis-modal.component';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { catchError, forkJoin, map, of, Observable, shareReplay, switchMap, tap } from 'rxjs';
 import { createExecutionMarketResolver, ExecutionMarketResolution, ExecutionMarketResolver } from './execution-market-resolver';
@@ -71,7 +72,7 @@ interface UsdcExecutionSection {
 @Component({
   selector: 'app-scanner',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, CoinAnalysisModalComponent],
   templateUrl: './scanner.component.html',
   styleUrl: './scanner.component.scss',
 })
@@ -351,6 +352,19 @@ export class ScannerComponent {
   closeAnalysisModal(): void {
     this.isAnalysisModalOpen = false;
     this.cdr.markForCheck();
+  }
+
+  copyFromModal(text: string): void {
+    if (!text) return;
+    if (!navigator.clipboard) {
+      this.showToast('Clipboard not available', 'error');
+      return;
+    }
+
+    void navigator.clipboard.writeText(text).then(
+      () => this.showToast('Copied to clipboard', 'info'),
+      () => this.showToast('Failed to copy to clipboard', 'error'),
+    );
   }
 
   @HostListener('window:keydown', ['$event'])

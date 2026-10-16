@@ -1,0 +1,39 @@
+<div class="analysis-modal-backdrop" role="dialog" aria-modal="true">
+  <div class="analysis-modal" tabindex="-1">
+    <header class="analysis-modal-header">
+      <h2>{{ candidate?.symbol }}</h2>
+      <div class="analysis-meta">
+        <span>Price: {{ candidate?.market.lastPrice | number: '1.2-4' }}</span>
+        <span>Status: <strong>{{ candidate?.status }}</strong></span>
+        <span>Score: {{ candidate?.score | number: '1.2-2' }}</span>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="copy-button" (click)="requestCopyAnalysis()">Copy for Analysis</button>
+        <button type="button" class="copy-button" (click)="copyChartsAsImage()">Copy Charts</button>
+        <button type="button" class="modal-close" (click)="requestClose()">Close</button>
+      </div>
+    </header>
+
+    <div class="analysis-modal-body">
+      <section class="modal-charts">
+        <div class="chart-card">
+          <h3>1H</h3>
+          <div id="chart-1h" class="chart-host" aria-label="1 hour chart">
+            <div *ngIf="isChartsLoading" class="chart-loading">Loading chart...</div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <h3>15M</h3>
+          <div id="chart-15m" class="chart-host" aria-label="15 minute chart">
+            <div *ngIf="isChartsLoading" class="chart-loading">Loading chart...</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="modal-analysis">
+        <pre>{{ analysisText }}</pre>
+      </section>
+    </div>
+  </div>
+</div>

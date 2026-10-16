@@ -1,0 +1,125 @@
+.analysis-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+}
+
+.analysis-modal {
+  width: 92%;
+  max-width: 1100px;
+  max-height: 90vh;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  outline: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.analysis-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #eee;
+  /* keep header visible while body scrolls */
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 20;
+}
+
+.analysis-modal-body {
+  padding: 12px 16px;
+  overflow: auto;
+  flex: 1 1 auto;
+}
+
+.modal-charts {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.chart-card {
+  flex: 1 1 48%;
+  min-height: 220px;
+  background: #fafafa;
+  padding: 8px;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-host {
+  width: 100%;
+  height: 320px;
+  position: relative;
+  flex: 1 1 auto;
+}
+
+.chart-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-analysis pre {
+  white-space: pre-wrap;
+  background: #f7f7f7;
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.modal-actions button {
+  margin-left: 0;
+}
+
+/* button styles copied from scanner styles so modal buttons keep the same design */
+.copy-button {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.6rem;
+  background: #f8fafc;
+  color: #0f172a;
+  padding: 0.65rem 0.9rem;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.copy-button:hover {
+  background: #eef2ff;
+}
+
+.modal-close {
+  border: 0;
+  background: transparent;
+  color: #0f172a;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* small screens adjustments */
+@media (max-width: 700px) {
+  .chart-host {
+    height: 220px;
+  }
+  .analysis-modal {
+    width: 98%;
+  }
+  .analysis-modal-header h2 {
+    font-size: 1.05rem;
+  }
+}
