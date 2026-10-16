@@ -159,91 +159,7 @@
     </section>
   }
 
-  <!-- Analysis modal -->
-  @if (isAnalysisModalOpen) {
-    <div class="analysis-modal-backdrop" role="dialog" aria-modal="true">
-      <div class="analysis-modal" tabindex="-1">
-      <header class="analysis-modal-header">
-        <h2>{{ selectedCandidate?.symbol }}</h2>
-        <div class="analysis-meta">
-          <span>Price: {{ selectedCandidate?.market.lastPrice | number: '1.2-4' }}</span>
-          <span>Status: <strong [ngClass]="statusClass(selectedCandidate?.status || 'REJECTED')">{{ selectedCandidate?.status }}</strong></span>
-          <span>Score: {{ selectedCandidate?.score | number: '1.2-2' }}</span>
-        </div>
-        <button type="button" class="modal-close" (click)="closeAnalysisModal()">Close</button>
-      </header>
-
-      <div class="analysis-modal-body">
-        <section class="modal-analysis">
-          <pre>{{ analysisText }}</pre>
-        </section>
-
-        <!-- Toasts -->
-        @if (toasts.length > 0) {
-          <div class="toasts" aria-live="polite">
-            @for (t of toasts; track t.id) {
-              <div class="toast" [class.error]="t.type === 'error'">{{ t.message }}</div>
-            }
-          </div>
-        }
-
-        <section class="modal-details">
-          <div class="panel" (click)="toggleSection(selectedCandidate?.symbol || '__none__','marketSummary')">
-            <div class="panel-header">Market summary <span class="panel-indicator">{{ isSectionExpanded(selectedCandidate?.symbol||'__none__','marketSummary') ? '−' : '+' }}</span></div>
-            @if (isSectionExpanded(selectedCandidate?.symbol||'__none__','marketSummary')) {
-              <div class="panel-body">
-              <p>Price: {{ selectedCandidate?.market.lastPrice | number: '1.2-4' }}</p>
-              <p>24h Change: {{ selectedCandidate?.market.change24hPercent | number: '1.1-2' }}%</p>
-              <p>24h Turnover: {{ selectedCandidate?.market.turnover24h | number: '1.0-0' }}</p>
-              <p>Status: {{ selectedCandidate?.status }}</p>
-              </div>
-            }
-          </div>
-
-          <div class="panel" (click)="toggleSection(selectedCandidate?.symbol || '__none__','h1')">
-            <div class="panel-header">1H <span class="panel-indicator">{{ isSectionExpanded(selectedCandidate?.symbol||'__none__','h1') ? '−' : '+' }}</span></div>
-            @if (isSectionExpanded(selectedCandidate?.symbol||'__none__','h1')) {
-              <div class="panel-body">
-              <p>Support: {{ selectedCandidate?.analysis1h?.support | number: '1.2-4' }}</p>
-              <p>Resistance: {{ selectedCandidate?.analysis1h?.resistance | number: '1.2-4' }}</p>
-              <p>Range: {{ selectedCandidate?.analysis1h?.rangePercent | number: '1.1-2' }}%</p>
-              <p>Position: {{ selectedCandidate?.analysis1h?.positionInRangePercent | number: '1.0-0' }}%</p>
-              <p>Volatility: {{ selectedCandidate?.analysis1h?.volatilityPercent | number: '1.1-2' }}%</p>
-              <p>Trend: {{ selectedCandidate?.analysis1h?.trendDirection ?? 'N/A' }}</p>
-              </div>
-            }
-          </div>
-
-          <div class="panel" (click)="toggleSection(selectedCandidate?.symbol || '__none__','m15')">
-            <div class="panel-header">15M <span class="panel-indicator">{{ isSectionExpanded(selectedCandidate?.symbol||'__none__','m15') ? '−' : '+' }}</span></div>
-            @if (isSectionExpanded(selectedCandidate?.symbol||'__none__','m15')) {
-              <div class="panel-body">
-              <p>Support: {{ selectedCandidate?.analysis15m?.support | number: '1.2-4' }}</p>
-              <p>Resistance: {{ selectedCandidate?.analysis15m?.resistance | number: '1.2-4' }}</p>
-              <p>Range: {{ selectedCandidate?.analysis15m?.rangePercent | number: '1.1-2' }}%</p>
-              <p>Position: {{ selectedCandidate?.analysis15m?.positionInRangePercent | number: '1.0-0' }}%</p>
-              <p>Volatility: {{ selectedCandidate?.analysis15m?.volatilityPercent | number: '1.1-2' }}%</p>
-              <p>Trend: {{ selectedCandidate?.analysis15m?.trendDirection ?? 'N/A' }}</p>
-              </div>
-            }
-          </div>
-
-          <div class="panel" (click)="toggleSection(selectedCandidate?.symbol || '__none__','reasons')">
-            <div class="panel-header">Reasons <span class="panel-indicator">{{ isSectionExpanded(selectedCandidate?.symbol||'__none__','reasons') ? '−' : '+' }}</span></div>
-            @if (isSectionExpanded(selectedCandidate?.symbol||'__none__','reasons')) {
-              <div class="panel-body">
-              <ul>
-                @for (reason of selectedCandidate?.reasons || []; track $index) {
-                  <li>{{ reason }}</li>
-                }
-              </ul>
-              </div>
-            }
-          </div>
-        </section>
-      </div>
-    </div>
-  }
+  <!-- Analysis modal removed temporarily to fix template parsing; modal content available in details section below. -->
 
   @if (selectedCandidate; as candidate) {
     <section class="details">
@@ -463,3 +379,10 @@
     </section>
   }
 </section>
+@if (toasts.length > 0) {
+  <div class="toasts" aria-live="polite">
+    @for (t of toasts; track t.id) {
+      <div class="toast" [class.error]="t.type === 'error'">{{ t.message }}</div>
+    }
+  </div>
+}
