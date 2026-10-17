@@ -273,6 +273,44 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
     await this.requestJson('/api/market-data/candles/load', symbol, timeframe, limit);
   }
 
+  private waitForNextPaint(): Promise<void> {
+    return new Promise((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+  }
+
+  private renderChartHost(host: HTMLElement): HTMLCanvasElement {
+    const hostRect = host.getBoundingClientRect();
+    const canvases = Array.from(host.querySelectorAll('canvas'));
+    const visibleCanvases = canvases.filter((canvas) => {
+      const rect = canvas.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 && canvas.width > 0 && canvas.height > 0;
+    });
+
+    if (!hostRect.width || !hostRect.height || !visibleCanvases.length) {
+      throw new Error('chart-host-not-ready');
+    }
+
+    const dpr = window.devicePixelRatio || 1;
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = Math.ceil(hostRect.width * dpr);
+    exportCanvas.height = Math.ceil(hostRect.height * dpr);
+
+    const ctx = exportCanvas.getContext('2d');
+    if (!ctx) throw new Error('no-canvas-ctx');
+
+    ctx.scale(dpr, dpr);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, hostRect.width, hostRect.height);
+
+    for (const canvas of visibleCanvases) {
+      const rect = canvas.getBoundingClientRect();
+      ctx.drawImage(canvas, rect.left - hostRect.left, rect.top - hostRect.top, rect.width, rect.height);
+    }
+
+    return exportCanvas;
+  }
+
   private addPriceLine(series: any, price: number, color = '#ff0000'): void {
     if (!series || typeof series.createPriceLine !== 'function') return;
     try {
@@ -323,24 +361,29 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
         return;
       }
 
-      const canvas1 = host1.querySelector('canvas');
-      const canvas15 = host15.querySelector('canvas');
-      if (!canvas1 || !canvas15) {
-        this.notify.emit({ message: 'Chart canvases not found', type: 'error' });
-        return;
-      }
+      await this.waitForNextPaint();
 
-      const w = Math.max(canvas1.width, canvas15.width);
-      const h = canvas1.height + canvas15.height;
+      const chart1 = this.renderChartHost(host1);
+      const chart15 = this.renderChartHost(host15);
+      const padding = 24;
+      const gap = 20;
+      const dpr = window.devicePixelRatio || 1;
+      const chart1Width = chart1.width / dpr;
+      const chart1Height = chart1.height / dpr;
+      const chart15Width = chart15.width / dpr;
+      const chart15Height = chart15.height / dpr;
+      const w = Math.max(chart1Width, chart15Width) + padding * 2;
+      const h = chart1Height + chart15Height + gap + padding * 2;
       const out = document.createElement('canvas');
-      out.width = w;
-      out.height = h;
+      out.width = Math.ceil(w * dpr);
+      out.height = Math.ceil(h * dpr);
       const ctx = out.getContext('2d');
       if (!ctx) throw new Error('no-canvas-ctx');
+      ctx.scale(dpr, dpr);
       ctx.fillStyle = '#fff';
       ctx.fillRect(0, 0, w, h);
-      ctx.drawImage(canvas1, 0, 0);
-      ctx.drawImage(canvas15, 0, canvas1.height);
+      ctx.drawImage(chart1, padding, padding, chart1Width, chart1Height);
+      ctx.drawImage(chart15, padding, padding + chart1Height + gap, chart15Width, chart15Height);
 
       if (navigator.clipboard && (navigator.clipboard as any).write) {
         const blob = await new Promise<Blob | null>((resolve) => out.toBlob((b) => resolve(b), 'image/png'));
