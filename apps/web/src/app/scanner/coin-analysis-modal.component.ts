@@ -30,6 +30,13 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
   priceLines15m: any[] = [];
 
   isChartsLoading = false;
+  status1h: 'loading' | 'ready' | 'empty' | 'error' = 'loading';
+  status15m: 'loading' | 'ready' | 'empty' | 'error' = 'loading';
+  status1hMessage = 'Loading chart...';
+  status15mMessage = 'Loading chart...';
+
+  // symbol|timeframe keys for which a history load already succeeded this session
+  private static readonly loadedHistory = new Set<string>();
 
   ngAfterViewInit(): void {
     void this.initOrUpdateCharts();
@@ -63,6 +70,10 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
 
     this.destroyCharts();
     this.isChartsLoading = true;
+    this.status1h = 'loading';
+    this.status15m = 'loading';
+    this.status1hMessage = 'Loading chart...';
+    this.status15mMessage = 'Loading chart...';
     this.cdr.markForCheck();
 
     try {
@@ -116,23 +127,12 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
       return;
     }
 
-    try {
-      const [resp1, resp15] = await Promise.all([
-        this.fetchCandles(symbol, '1h', 100),
-        this.fetchCandles(symbol, '15m', 96),
-      ]);
-
-      const toPoint = (e: any) => {
-        if (!e || !e.openTime) return null;
-        return { time: Math.floor(new Date(e.openTime).getTime() / 1000), open: Number(e.open), high: Number(e.high), low: Number(e.low), close: Number(e.close) } as CandlestickData;
-      };
-
-      const series1 = (resp1 || []).map(toPoint).filter(Boolean);
-      const series15 = (resp15 || []).map(toPoint).filter(Boolean);
-
-      if (this.series1h && series1.length) this.series1h.setData(series1 as any);
-      if (this.series15m && series15.length) this.series15m.setData(series15 as any);
-
+    // each timeframe is loaded independently; one failing does not affect the other
+    const run1h = this.loadAndRender(symbol, '1h', 100, 3_600_000, 'series1h', (st, msg) => {
+      this.status1h = st;
+      this.status1hMessage = msg;
+    }).then(() => {
+      if (this.candidate?.symbol !== symbol) return;
       this.clearPriceLines();
       // draw support/resistance & grid range if present
       const s = this.candidate?.analysis1h?.support ?? this.usdcExecution?.analysis1h?.support;
@@ -141,27 +141,85 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
         this.addPriceLine(this.series1h, s, '#ff0000');
         this.addPriceLine(this.series1h, r, '#0070f3');
       }
-    } catch (error) {
-      console.error('Chart data load error', error);
-      this.notify.emit({ message: 'Failed to load chart data', type: 'error' });
-    }
+    });
+    const run15m = this.loadAndRender(symbol, '15m', 96, 900_000, 'series15m', (st, msg) => {
+      this.status15m = st;
+      this.status15mMessage = msg;
+    });
 
+    await Promise.allSettled([run1h, run15m]);
     this.isChartsLoading = false;
     this.cdr.markForCheck();
   }
 
-  private async fetchCandles(symbol: string, timeframe: string, limit = 100): Promise<any[]> {
+  private async loadAndRender(
+    symbol: string,
+    timeframe: string,
+    target: number,
+    intervalMs: number,
+    seriesKey: 'series1h' | 'series15m',
+    setStatus: (st: 'loading' | 'ready' | 'empty' | 'error', msg: string) => void,
+  ): Promise<void> {
+    const series = this[seriesKey];
+    const stale = () => this.candidate?.symbol !== symbol || this[seriesKey] !== series;
     try {
-      const q = new URLSearchParams({ broker: 'bybit', symbol, timeframe, limit: String(limit) });
-      const res = await fetch(`/api/market-data/candles?${q.toString()}`);
-      if (!res.ok) return [];
-      const data = await res.json();
-      if (Array.isArray(data)) return data;
-      if (Array.isArray(data?.data)) return data.data;
-      return [];
-    } catch {
-      return [];
+      let candles = this.validate(await this.fetchCandles(symbol, timeframe, target));
+      const key = `${symbol}|${timeframe}`;
+      const latest = candles.length ? (candles[candles.length - 1].time as number) * 1000 : 0;
+      const fresh = Date.now() - latest <= intervalMs * 3;
+      const sufficient = candles.length >= target && fresh;
+
+      if (!sufficient && !CoinAnalysisModalComponent.loadedHistory.has(key)) {
+        // GET /api/market-data/candles/load: fetches from the broker and upserts (idempotent)
+        await this.loadHistory(symbol, timeframe, target);
+        CoinAnalysisModalComponent.loadedHistory.add(key);
+        candles = this.validate(await this.fetchCandles(symbol, timeframe, target));
+      }
+
+      if (stale() || !series) return;
+      if (!candles.length) {
+        setStatus('empty', `No ${timeframe.toUpperCase()} candle history available for ${symbol}.`);
+      } else {
+        series.setData(candles as any);
+        (seriesKey === 'series1h' ? this.chart1h : this.chart15m)?.timeScale().fitContent();
+        setStatus('ready', '');
+      }
+    } catch (error) {
+      console.error(`Chart data error (${timeframe})`, error);
+      if (stale()) return;
+      setStatus('error', `Failed to load ${timeframe.toUpperCase()} candles.`);
     }
+    this.cdr.markForCheck();
+  }
+
+  private validate(rows: any[]): CandlestickData[] {
+    const byTime = new Map<number, CandlestickData>();
+    for (const e of rows) {
+      if (!e?.openTime) continue;
+      const time = Math.floor(new Date(e.openTime).getTime() / 1000);
+      const open = Number(e.open), high = Number(e.high), low = Number(e.low), close = Number(e.close);
+      if (![time, open, high, low, close].every(Number.isFinite)) continue;
+      byTime.set(time, { time: time as any, open, high, low, close });
+    }
+    return Array.from(byTime.values()).sort((a, b) => (a.time as number) - (b.time as number));
+  }
+
+  private async requestJson(path: string, symbol: string, timeframe: string, limit: number): Promise<any[]> {
+    const q = new URLSearchParams({ broker: 'bybit', symbol, timeframe, limit: String(limit) });
+    const res = await fetch(`${path}?${q.toString()}`);
+    if (!res.ok) throw new Error(`${path} failed: HTTP ${res.status}`);
+    const data = await res.json();
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.data)) return data.data;
+    throw new Error(`${path} returned unexpected payload`);
+  }
+
+  private fetchCandles(symbol: string, timeframe: string, limit: number): Promise<any[]> {
+    return this.requestJson('/api/market-data/candles', symbol, timeframe, limit);
+  }
+
+  private async loadHistory(symbol: string, timeframe: string, limit: number): Promise<void> {
+    await this.requestJson('/api/market-data/candles/load', symbol, timeframe, limit);
   }
 
   private addPriceLine(series: any, price: number, color = '#ff0000'): void {
