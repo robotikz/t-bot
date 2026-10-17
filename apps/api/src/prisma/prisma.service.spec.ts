@@ -1,4 +1,23 @@
 import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('@prisma/client', () => {
+  class MockPrismaClient {
+    async $connect() {}
+
+    async $disconnect() {}
+
+    async $queryRaw() {
+      return [];
+    }
+  }
+
+  return {
+    default: {
+      PrismaClient: MockPrismaClient,
+    },
+  };
+});
+
 import { PrismaService } from './prisma.service.js';
 
 function createConfig(databaseUrl: string) {
