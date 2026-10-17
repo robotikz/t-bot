@@ -1,5 +1,5 @@
 import type { Candle } from '../market/market.types.js';
-import { clamp, round } from '../../shared/utils/math.js';
+import { clamp } from '../../shared/utils/math.js';
 
 export interface RangeMetrics {
   rangeHigh: number;
@@ -35,10 +35,10 @@ export function calculateRangeMetrics(candles: Candle[], price: number): RangeMe
     span > 0 ? clamp(((price - rangeLow) / span) * 100, 0, 100) : 50;
 
   return {
-    rangeHigh: round(rangeHigh),
-    rangeLow: round(rangeLow),
-    rangePercent: round(rangePercent),
-    positionInRangePercent: round(positionInRangePercent),
+    rangeHigh,
+    rangeLow,
+    rangePercent,
+    positionInRangePercent,
     priceVsRange: price < rangeLow ? 'BELOW_RANGE' : price > rangeHigh ? 'ABOVE_RANGE' : 'WITHIN_RANGE'
   };
 }

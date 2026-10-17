@@ -320,6 +320,29 @@ describe('ScannerComponent', () => {
     expect(component.selectedCandidate?.rejectionReasons).toContain('LOW_RANGE');
   });
 
+  it('formats tiny prices without collapsing them to 0.0000 in the analysis copy', () => {
+    component.selectedCandidate = {
+      ...scanResult.candidates[0],
+      market: {
+        ...scanResult.candidates[0].market,
+        lastPrice: 0.000004095,
+      },
+      analysis1h: {
+        ...scanResult.candidates[0].analysis1h!,
+        support: 0.00000401,
+        resistance: 0.0000043,
+      },
+      analysis15m: {
+        ...scanResult.candidates[0].analysis15m!,
+        support: 0.00000402,
+        resistance: 0.00000428,
+      },
+    } as any;
+
+    expect(component.analysisText).toContain('Price: 0.00000410');
+    expect(component.analysisText).toContain('Support: 0.00000401');
+  });
+
   it('enforces pullback entry below current price when status is WAIT_PULLBACK', async () => {
     api.getAnalysis.mockImplementation((symbol: string, timeframe: '1h' | '15m') =>
       of(
@@ -677,6 +700,39 @@ describe('ScannerComponent', () => {
     await fixture.whenStable();
 
     expect(component.usdcExecution?.status).toBe('READY');
+    expect(component.usdcExecution?.decision).toBe('CAN_LAUNCH');
+  });
+
+  it.each([
+    { support: 0, resistance: 0 },
+    { support: -1, resistance: 1 },
+    { support: Number.NaN, resistance: 1 },
+    { support: 1, resistance: Number.POSITIVE_INFINITY },
+    { support: 5, resistance: 5 },
+  ])('returns DO_NOT_LAUNCH for invalid support/resistance data %#', async (invalid) => {
+    api.getAnalysis.mockImplementation((symbol: string, timeframe: '1h' | '15m') =>
+      of(
+        timeframe === '1h'
+          ? createUsdcAnalysis('1h', {
+              ...invalid,
+              trendDirection: 'UP',
+              positionInRangePercent: 45,
+            } as any)
+          : createUsdcAnalysis('15m', {
+              ...invalid,
+              trendDirection: 'UP',
+              positionInRangePercent: 48,
+            } as any),
+      ),
+    );
+
+    fixture.detectChanges();
+    component.scan();
+    await fixture.whenStable();
+
+    expect(component.usdcExecution?.status).toBe('NO_ENTRY');
+    expect(component.usdcExecution?.decision).toBe('DO_NOT_LAUNCH');
+    expect(component.usdcExecution?.reason).toContain('Invalid support/resistance data');
   });
 
   it('returns WAIT_PULLBACK for strong pump with high position', async () => {

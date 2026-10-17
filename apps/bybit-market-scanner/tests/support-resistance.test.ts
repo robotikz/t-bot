@@ -96,4 +96,26 @@ describe('support-resistance', () => {
     expect(result.distanceToResistancePercent).toBe(0);
     expect(Number.isFinite(result.distanceToResistancePercent)).toBe(true);
   });
+
+  it('preserves tiny positive support/resistance values instead of collapsing them to zero', () => {
+    const tiny = [
+      { timestamp: 1, open: 0.0000041, high: 0.00000418, low: 0.000004, close: 0.00000412, volume: 1, turnover: 1, isClosed: true },
+      { timestamp: 2, open: 0.00000412, high: 0.0000043, low: 0.00000402, close: 0.00000425, volume: 1, turnover: 1, isClosed: true },
+      { timestamp: 3, open: 0.00000405, high: 0.00000422, low: 0.00000399, close: 0.00000405, volume: 1, turnover: 1, isClosed: true },
+      { timestamp: 4, open: 0.0000042, high: 0.00000432, low: 0.00000401, close: 0.0000042, volume: 1, turnover: 1, isClosed: true },
+      { timestamp: 5, open: 0.00000415, high: 0.00000435, low: 0.00000403, close: 0.0000043, volume: 1, turnover: 1, isClosed: true },
+      { timestamp: 6, open: 0.00000418, high: 0.00000431, low: 0.00000407, close: 0.00000415, volume: 1, turnover: 1, isClosed: true }
+    ];
+
+    const result = calculateSupportResistance(tiny, 0.000004095, {
+      swingWindow: 1,
+      clusterPercent: 1,
+      minTouches: 1
+    });
+
+    expect(result.support).toBeGreaterThan(0);
+    expect(result.resistance).toBeGreaterThan(result.support);
+    expect(result.support).not.toBe(0);
+    expect(result.resistance).not.toBe(0);
+  });
 });

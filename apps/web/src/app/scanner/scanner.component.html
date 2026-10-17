@@ -148,7 +148,7 @@
               <td>{{ index + 1 }}</td>
               <td><span class="status" [ngClass]="statusClass(candidate.status)">{{ candidate.status }}</span></td>
               <td>{{ candidate.symbol }}</td>
-              <td>{{ candidate.market.lastPrice | number: '1.2-4' }}</td>
+              <td>{{ formatMarketPrice(candidate.market.lastPrice) }}</td>
               <td [class.positive]="candidate.market.change24hPercent >= 0" [class.negative]="candidate.market.change24hPercent < 0">
                 {{ candidate.market.change24hPercent >= 0 ? '+' : '' }}{{ candidate.market.change24hPercent | number: '1.1-2' }}%
               </td>
@@ -268,7 +268,7 @@
               <div class="detail-grid execution-grid">
                 <div class="summary-card">
                   <h3>USDC Market (Execution Pair)</h3>
-                  <p>Current Price: {{ execution.market?.currentPrice | number: '1.2-6' }}</p>
+                  <p>Current Price: {{ formatMarketPrice(execution.market?.currentPrice) }}</p>
                   <p>
                     24h Change:
                     {{ (execution.market?.change24hPercent ?? 0) >= 0 ? '+' : '' }}{{ execution.market?.change24hPercent | number: '1.1-2' }}%
@@ -278,8 +278,8 @@
 
                 <div class="summary-card">
                   <h3>USDC 1H</h3>
-                  <p>1H Support: {{ execution.analysis1h?.support | number: '1.2-6' }}</p>
-                  <p>1H Resistance: {{ execution.analysis1h?.resistance | number: '1.2-6' }}</p>
+                  <p>1H Support: {{ formatMarketPrice(execution.analysis1h?.support) }}</p>
+                  <p>1H Resistance: {{ formatMarketPrice(execution.analysis1h?.resistance) }}</p>
                   <p>1H Range: {{ execution.analysis1h?.rangePercent | number: '1.1-2' }}%</p>
                   <p>1H Position: {{ execution.analysis1h?.positionInRangePercent | number: '1.0-0' }}%</p>
                   <p>1H Volatility: {{ execution.analysis1h?.volatilityPercent | number: '1.1-2' }}%</p>
@@ -288,8 +288,8 @@
 
                 <div class="summary-card">
                   <h3>USDC 15M</h3>
-                  <p>15M Support: {{ execution.analysis15m?.support | number: '1.2-6' }}</p>
-                  <p>15M Resistance: {{ execution.analysis15m?.resistance | number: '1.2-6' }}</p>
+                  <p>15M Support: {{ formatMarketPrice(execution.analysis15m?.support) }}</p>
+                  <p>15M Resistance: {{ formatMarketPrice(execution.analysis15m?.resistance) }}</p>
                   <p>15M Range: {{ execution.analysis15m?.rangePercent | number: '1.1-2' }}%</p>
                   <p>15M Position: {{ execution.analysis15m?.positionInRangePercent | number: '1.0-0' }}%</p>
                   <p>15M Volatility: {{ execution.analysis15m?.volatilityPercent | number: '1.1-2' }}%</p>
@@ -316,15 +316,15 @@
                   <p>Investment: {{ recommendation.investmentUsdc }} USDC</p>
                   <p>
                     Recommended Entry:
-                    {{ recommendation.entryLow | number: '1.2-6' }} - {{ recommendation.entryHigh | number: '1.2-6' }}
+                    {{ formatMarketPrice(recommendation.entryLow) }} - {{ formatMarketPrice(recommendation.entryHigh) }}
                   </p>
                   <p>
                     Recommended Grid Range:
-                    {{ recommendation.gridLow | number: '1.2-6' }} - {{ recommendation.gridHigh | number: '1.2-6' }}
+                    {{ formatMarketPrice(recommendation.gridLow) }} - {{ formatMarketPrice(recommendation.gridHigh) }}
                   </p>
                   <p>Grid Count: {{ recommendation.gridCount }}</p>
-                  <p>Stop Loss: {{ recommendation.stopLoss | number: '1.2-6' }}</p>
-                  <p>Take Profit: {{ recommendation.takeProfit | number: '1.2-6' }}</p>
+                  <p>Stop Loss: {{ formatMarketPrice(recommendation.stopLoss) }}</p>
+                  <p>Take Profit: {{ formatMarketPrice(recommendation.takeProfit) }}</p>
                   <p>Trailing Up: {{ recommendation.trailingUp ? 'ON' : 'OFF' }}</p>
                   <p>Trailing Stop: {{ recommendation.trailingStopPercent | number: '1.1-2' }}%</p>
                   <p>Risk: {{ recommendation.risk }}</p>
@@ -346,7 +346,7 @@
           <div class="panel-header" (click)="toggleSection(candidate.symbol,'marketSummary')">Market summary <span class="panel-indicator">{{ isSectionExpanded(candidate.symbol,'marketSummary') ? '−' : '+' }}</span></div>
           @if (isSectionExpanded(candidate.symbol,'marketSummary')) {
             <div class="panel-body">
-              <p>Price: {{ candidate.market.lastPrice | number: '1.2-4' }}</p>
+              <p>Price: {{ formatMarketPrice(candidate.market.lastPrice) }}</p>
               <p>24h Change: {{ candidate.market.change24hPercent >= 0 ? '+' : '' }}{{ candidate.market.change24hPercent | number: '1.1-2' }}%</p>
               <p>24h Turnover: {{ candidate.market.turnover24h | number: '1.0-0' }}</p>
               <p>Status: {{ candidate.status }}</p>
@@ -361,8 +361,8 @@
           <div class="panel-header" (click)="toggleSection(candidate.symbol,'h1')">1H <span class="panel-indicator">{{ isSectionExpanded(candidate.symbol,'h1') ? '−' : '+' }}</span></div>
           @if (isSectionExpanded(candidate.symbol,'h1')) {
             <div class="panel-body">
-              <p>Support: {{ candidate.analysis1h?.support | number: '1.2-4' }}</p>
-              <p>Resistance: {{ candidate.analysis1h?.resistance | number: '1.2-4' }}</p>
+              <p>Support: {{ formatMarketPrice(candidate.analysis1h?.support) }}</p>
+              <p>Resistance: {{ formatMarketPrice(candidate.analysis1h?.resistance) }}</p>
               <p>Range: {{ candidate.analysis1h?.rangePercent | number: '1.1-2' }}%</p>
               <p>Position: {{ candidate.analysis1h?.positionInRangePercent | number: '1.0-0' }}%</p>
               <p>Volatility: {{ candidate.analysis1h?.volatilityPercent | number: '1.1-2' }}%</p>
@@ -376,8 +376,8 @@
           <div class="panel-header" (click)="toggleSection(candidate.symbol,'m15')">15M <span class="panel-indicator">{{ isSectionExpanded(candidate.symbol,'m15') ? '−' : '+' }}</span></div>
           @if (isSectionExpanded(candidate.symbol,'m15')) {
             <div class="panel-body">
-              <p>Support: {{ candidate.analysis15m?.support | number: '1.2-4' }}</p>
-              <p>Resistance: {{ candidate.analysis15m?.resistance | number: '1.2-4' }}</p>
+              <p>Support: {{ formatMarketPrice(candidate.analysis15m?.support) }}</p>
+              <p>Resistance: {{ formatMarketPrice(candidate.analysis15m?.resistance) }}</p>
               <p>Range: {{ candidate.analysis15m?.rangePercent | number: '1.1-2' }}%</p>
               <p>Position: {{ candidate.analysis15m?.positionInRangePercent | number: '1.0-0' }}%</p>
               <p>Volatility: {{ candidate.analysis15m?.volatilityPercent | number: '1.1-2' }}%</p>

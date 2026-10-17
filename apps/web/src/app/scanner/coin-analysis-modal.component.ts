@@ -3,6 +3,19 @@ import { AfterViewInit, ChangeDetectorRef, Component, EventEmitter, Input, OnCha
 import { ScannerCandidate, ScannerService } from './scanner.service';
 import type { CandlestickSeries, CandlestickData, CrosshairMode } from 'lightweight-charts';
 
+function formatMarketPrice(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value) || value <= 0) {
+    return 'N/A';
+  }
+
+  const abs = Math.abs(value);
+  const fractionDigits = abs >= 1000 ? 2 : abs >= 1 ? 4 : abs >= 0.01 ? 4 : abs >= 0.0001 ? 6 : 8;
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  }).format(value);
+}
+
 @Component({
   selector: 'app-coin-analysis-modal',
   standalone: true,
@@ -13,6 +26,7 @@ import type { CandlestickSeries, CandlestickData, CrosshairMode } from 'lightwei
 export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnDestroy {
   private readonly scannerService = inject(ScannerService);
   private readonly cdr = inject(ChangeDetectorRef);
+  readonly formatMarketPrice = formatMarketPrice;
 
   @Input() candidate: ScannerCandidate | null = null;
   @Input() usdcExecution: any | null = null;

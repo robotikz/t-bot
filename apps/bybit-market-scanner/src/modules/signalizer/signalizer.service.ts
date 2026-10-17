@@ -32,7 +32,9 @@ function resolveBaseState(candidate: ScannerCandidate): SignalState {
       'STRONG_DOWNTREND',
       'TREND_TOO_STRONG',
       'RANGE_OUT_OF_BOUNDS',
-      'VOLATILITY_OUT_OF_BOUNDS'
+      'VOLATILITY_OUT_OF_BOUNDS',
+      'INVALID_MARKET_DATA',
+      'INVALID_SUPPORT_RESISTANCE'
     ]) ||
     candidate.entryTiming === 'NO_ENTRY'
   ) {

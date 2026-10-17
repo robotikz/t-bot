@@ -3,7 +3,7 @@
     <header class="analysis-modal-header">
       <h2>{{ candidate?.symbol }}</h2>
       <div class="analysis-meta">
-        <span>Price: {{ candidate?.market.lastPrice | number: '1.2-4' }}</span>
+        <span>Price: {{ formatMarketPrice(candidate?.market.lastPrice) }}</span>
         <span>Status: <strong>{{ candidate?.status }}</strong></span>
         <span>Score: {{ candidate?.score | number: '1.2-2' }}</span>
       </div>

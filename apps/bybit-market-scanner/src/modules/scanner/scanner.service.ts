@@ -25,7 +25,13 @@ function buildPositiveReasons(score: number, rejectionReasons: string[]): string
 // combined 24h-drop + DOWN trend + window-drop condition and is stricter than the
 // 1h-DOWN condition the signalizer already maps to NO_TRADE. Range, volatility and
 // TREND_TOO_STRONG stay soft: they are already penalised by the score components.
-const HARD_REJECTION_REASONS = new Set(['LOW_LIQUIDITY', 'INSUFFICIENT_CANDLES', 'STRONG_DOWNTREND']);
+const HARD_REJECTION_REASONS = new Set([
+  'LOW_LIQUIDITY',
+  'INSUFFICIENT_CANDLES',
+  'STRONG_DOWNTREND',
+  'INVALID_MARKET_DATA',
+  'INVALID_SUPPORT_RESISTANCE'
+]);
 
 // Per-symbol data problems that must not abort the whole scan. Anything else
 // (HTTP/rate-limit/timeout ExternalServiceError, programming errors) still fails the scan.
@@ -146,7 +152,7 @@ export class ScannerService {
     const sorted = [...candidates]
       .sort((a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status] || b.score - a.score)
       .slice(0, topLimit)
-      .map((item) => ({ ...item, score: Number(item.score.toFixed(4)) }));
+      .map((item) => ({ ...item }));
 
     return {
       timestamp: new Date().toISOString(),

@@ -194,6 +194,53 @@ describe('scanner.service', () => {
     expect(result.candidates[0]?.status).toBe('REJECTED');
   });
 
+  it('rejects invalid support/resistance even when the score is high and preserves the rejection reason', async () => {
+    const config = { ...loadConfig(), topCandidates: 10 };
+    const service = new ScannerService(marketService, analysisService, config);
+    const mk = (symbol: string) => ({ symbol, baseCoin: symbol, quoteCoin: 'USDC', status: 'Trading' });
+    const tk = (symbol: string) => ({
+      symbol,
+      lastPrice: 0.000004095,
+      change24hPercent: 0,
+      high24h: 0.0000042,
+      low24h: 0.000004,
+      volume24h: 1,
+      turnover24h: 2_000_000,
+      timestamp: Date.now()
+    });
+
+    vi.mocked(marketService.getMarketsByQuoteCoin).mockResolvedValue([mk('PEPEUSDC')] as any);
+    vi.mocked(marketService.getTickers).mockResolvedValue([tk('PEPEUSDC')] as any);
+    vi.mocked(marketService.getCandles).mockResolvedValue([]);
+    vi.mocked(analysisService.analyzeSymbol)
+      .mockResolvedValueOnce(
+        makeAnalysis({
+          symbol: 'PEPEUSDC',
+          timeframe: '1h',
+          gridScore: 99,
+          support: 0,
+          resistance: 0,
+          rejectionReasons: ['INVALID_SUPPORT_RESISTANCE']
+        })
+      )
+      .mockResolvedValueOnce(
+        makeAnalysis({
+          symbol: 'PEPEUSDC',
+          timeframe: '15m',
+          gridScore: 98,
+          support: 0,
+          resistance: 0,
+          rejectionReasons: ['INVALID_SUPPORT_RESISTANCE']
+        })
+      );
+
+    const result = await service.scan();
+
+    expect(result.candidates[0]?.status).toBe('REJECTED');
+    expect(result.candidates[0]?.rejectionReasons).toContain('INVALID_SUPPORT_RESISTANCE');
+    expect(result.candidates[0]?.reasons).not.toContain('PASSES_FILTERS');
+  });
+
   describe('per-symbol error isolation', () => {
     const setup = () => {
       const config = { ...loadConfig(), topCandidates: 10 };

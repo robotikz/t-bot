@@ -1,5 +1,5 @@
 import type { AppConfig } from '../../config/config.js';
-import { clamp, round } from '../../shared/utils/math.js';
+import { clamp } from '../../shared/utils/math.js';
 import type { MarketService } from '../market/market.service.js';
 import type { Timeframe } from '../market/market.types.js';
 import type { MarketAnalysis } from './analysis.types.js';
@@ -7,6 +7,77 @@ import { calculateRangeMetrics } from './range.js';
 import { calculateSupportResistance } from './support-resistance.js';
 import { analyzeTrend } from './trend.js';
 import { calculateVolatilityPercent } from './volatility.js';
+
+function hasFiniteNumber(value: number): boolean {
+  return Number.isFinite(value);
+}
+
+function collectValidationReasons(input: {
+  price: number;
+  rangeHigh: number;
+  rangeLow: number;
+  rangePercent: number;
+  positionInRangePercent: number;
+  priceVsRange?: 'BELOW_RANGE' | 'WITHIN_RANGE' | 'ABOVE_RANGE';
+  support: number;
+  resistance: number;
+  distanceToSupportPercent: number;
+  distanceToResistancePercent: number;
+}): string[] {
+  const reasons: string[] = [];
+
+  const marketDataValid =
+    hasFiniteNumber(input.price) &&
+    input.price > 0 &&
+    hasFiniteNumber(input.rangeHigh) &&
+    input.rangeHigh > 0 &&
+    hasFiniteNumber(input.rangeLow) &&
+    input.rangeLow > 0 &&
+    input.rangeHigh >= input.rangeLow &&
+    hasFiniteNumber(input.rangePercent) &&
+    input.rangePercent >= 0 &&
+    hasFiniteNumber(input.positionInRangePercent) &&
+    input.positionInRangePercent >= 0 &&
+    input.positionInRangePercent <= 100;
+
+  if (!marketDataValid) {
+    reasons.push('INVALID_MARKET_DATA');
+  }
+
+  const supportResistanceValid =
+    hasFiniteNumber(input.support) &&
+    input.support > 0 &&
+    hasFiniteNumber(input.resistance) &&
+    input.resistance > 0 &&
+    input.resistance > input.support &&
+    hasFiniteNumber(input.distanceToSupportPercent) &&
+    input.distanceToSupportPercent >= 0 &&
+    hasFiniteNumber(input.distanceToResistancePercent) &&
+    input.distanceToResistancePercent >= 0;
+
+  if (!supportResistanceValid) {
+    reasons.push('INVALID_SUPPORT_RESISTANCE');
+  }
+
+  if (marketDataValid && input.priceVsRange) {
+    if (input.priceVsRange === 'BELOW_RANGE' && !(input.price < input.rangeLow)) {
+      reasons.push('INVALID_MARKET_DATA');
+    }
+
+    if (input.priceVsRange === 'ABOVE_RANGE' && !(input.price > input.rangeHigh)) {
+      reasons.push('INVALID_MARKET_DATA');
+    }
+
+    if (
+      input.priceVsRange === 'WITHIN_RANGE' &&
+      !(input.price >= input.rangeLow && input.price <= input.rangeHigh)
+    ) {
+      reasons.push('INVALID_MARKET_DATA');
+    }
+  }
+
+  return Array.from(new Set(reasons));
+}
 
 function getLiquidityScore(turnover24h: number, tiers: [number, number, number, number]): number {
   if (turnover24h >= tiers[0]) return 100;
@@ -49,7 +120,20 @@ export class AnalysisService {
       minTouches: this.config.srMinTouches
     });
 
-    const rejectionReasons: string[] = [];
+    const rejectionReasons: string[] = collectValidationReasons({
+      price: ticker.lastPrice,
+      rangeHigh: range.rangeHigh,
+      rangeLow: range.rangeLow,
+      rangePercent: range.rangePercent,
+      positionInRangePercent: range.positionInRangePercent,
+      priceVsRange: range.priceVsRange,
+      support: sr.support,
+      resistance: sr.resistance,
+      distanceToSupportPercent: sr.distanceToSupportPercent,
+      distanceToResistancePercent: sr.distanceToResistancePercent
+    });
+
+    const hasValidationFailure = rejectionReasons.length > 0;
 
     const minTurnover = options?.minTurnover ?? this.config.minTurnover24hUsdt;
     if (ticker.turnover24h < minTurnover) {
@@ -85,20 +169,24 @@ export class AnalysisService {
     }
 
     const liquidityScore = getLiquidityScore(ticker.turnover24h, this.config.liquidityTiers);
-    const rangeScore = getBoundedScore(range.rangePercent, this.config.minRangePercent, this.config.maxRangePercent);
-    const trendScore = clamp(
-      100 - (trend.trendStrength / this.config.maxTrendStrengthPercent) * 100,
-      0,
-      100
-    );
-    const volatilityScore = getBoundedScore(
-      volatilityPercent,
-      this.config.minAvgRangePercent,
-      this.config.maxAvgRangePercent
-    );
+    const rangeScore = hasValidationFailure
+      ? 0
+      : getBoundedScore(range.rangePercent, this.config.minRangePercent, this.config.maxRangePercent);
+    const trendScore = hasValidationFailure
+      ? 0
+      : clamp(100 - (trend.trendStrength / this.config.maxTrendStrengthPercent) * 100, 0, 100);
+    const volatilityScore = hasValidationFailure
+      ? 0
+      : getBoundedScore(
+          volatilityPercent,
+          this.config.minAvgRangePercent,
+          this.config.maxAvgRangePercent
+        );
 
-    const nearestBoundary = Math.min(sr.distanceToSupportPercent, sr.distanceToResistancePercent);
-    const supportResistanceScore = clamp((nearestBoundary / 10) * 100, 0, 100);
+    const nearestBoundary = hasValidationFailure
+      ? Number.NaN
+      : Math.min(sr.distanceToSupportPercent, sr.distanceToResistancePercent);
+    const supportResistanceScore = hasValidationFailure ? 0 : clamp((nearestBoundary / 10) * 100, 0, 100);
 
     const weights = this.config.scannerWeights;
     const totalWeight =
@@ -108,20 +196,21 @@ export class AnalysisService {
       weights.volatility +
       weights.supportResistance;
 
-    const gridScore =
-      (liquidityScore * weights.liquidity +
-        rangeScore * weights.range +
-        trendScore * weights.trend +
-        volatilityScore * weights.volatility +
-        supportResistanceScore * weights.supportResistance) /
-      totalWeight;
+    const gridScore = hasValidationFailure
+      ? 0
+      : (liquidityScore * weights.liquidity +
+          rangeScore * weights.range +
+          trendScore * weights.trend +
+          volatilityScore * weights.volatility +
+          supportResistanceScore * weights.supportResistance) /
+        totalWeight;
 
     return {
       symbol,
       price: ticker.lastPrice,
-      change24hPercent: round(ticker.change24hPercent),
-      volume24h: round(ticker.volume24h),
-      turnover24h: round(ticker.turnover24h),
+      change24hPercent: ticker.change24hPercent,
+      volume24h: ticker.volume24h,
+      turnover24h: ticker.turnover24h,
       timeframe,
       rangeHigh: range.rangeHigh,
       rangeLow: range.rangeLow,
@@ -135,9 +224,9 @@ export class AnalysisService {
       volatilityPercent,
       trendDirection: trend.trendDirection,
       trendStrength: trend.trendStrength,
-      liquidityScore: round(liquidityScore),
-      gridScore: round(gridScore),
-      rejectionReasons
+      liquidityScore,
+      gridScore,
+      rejectionReasons: Array.from(new Set(rejectionReasons))
     };
   }
 }

@@ -1,5 +1,4 @@
 import type { Candle } from '../market/market.types.js';
-import { round } from '../../shared/utils/math.js';
 
 interface LevelCluster {
   price: number;
@@ -131,9 +130,9 @@ export function calculateSupportResistance(
   const distanceToResistancePercent = ((resistanceLevel - price) / price) * 100;
 
   return {
-    support: round(supportLevel),
-    resistance: round(resistanceLevel),
-    distanceToSupportPercent: round(Math.max(0, distanceToSupportPercent)),
-    distanceToResistancePercent: round(Math.max(0, distanceToResistancePercent))
+    support: supportLevel,
+    resistance: resistanceLevel,
+    distanceToSupportPercent: Math.max(0, distanceToSupportPercent),
+    distanceToResistancePercent: Math.max(0, distanceToResistancePercent)
   };
 }

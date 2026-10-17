@@ -1,5 +1,4 @@
 import type { Candle } from '../market/market.types.js';
-import { round } from '../../shared/utils/math.js';
 import { ValidationError } from '../../shared/errors/app-error.js';
 
 export function calculateVolatilityPercent(candles: Candle[]): number {
@@ -21,5 +20,5 @@ export function calculateVolatilityPercent(candles: Candle[]): number {
   }
 
   if (count === 0) return 0;
-  return round(total / count);
+  return total / count;
 }

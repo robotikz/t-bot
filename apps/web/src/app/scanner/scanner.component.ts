@@ -12,6 +12,45 @@ type ExecutionStatus = EntryTiming | 'UNAVAILABLE';
 type ExecutionDecision = 'CAN_LAUNCH' | 'WAIT' | 'DO_NOT_LAUNCH' | 'UNAVAILABLE';
 type GridRisk = 'LOW' | 'MEDIUM' | 'HIGH';
 
+function formatMarketPrice(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value) || value <= 0) {
+    return 'N/A';
+  }
+
+  const abs = Math.abs(value);
+  const fractionDigits = abs >= 1000 ? 2 : abs >= 1 ? 4 : abs >= 0.01 ? 4 : abs >= 0.0001 ? 6 : 8;
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  }).format(value);
+}
+
+function hasValidAnalysisStructure(analysis: MarketAnalysis): boolean {
+  return (
+    Number.isFinite(analysis.price) &&
+    analysis.price > 0 &&
+    Number.isFinite(analysis.rangeHigh) &&
+    analysis.rangeHigh > 0 &&
+    Number.isFinite(analysis.rangeLow) &&
+    analysis.rangeLow > 0 &&
+    analysis.rangeHigh >= analysis.rangeLow &&
+    Number.isFinite(analysis.rangePercent) &&
+    analysis.rangePercent >= 0 &&
+    Number.isFinite(analysis.positionInRangePercent) &&
+    analysis.positionInRangePercent >= 0 &&
+    analysis.positionInRangePercent <= 100 &&
+    Number.isFinite(analysis.support) &&
+    analysis.support > 0 &&
+    Number.isFinite(analysis.resistance) &&
+    analysis.resistance > 0 &&
+    analysis.resistance > analysis.support &&
+    Number.isFinite(analysis.distanceToSupportPercent) &&
+    analysis.distanceToSupportPercent >= 0 &&
+    Number.isFinite(analysis.distanceToResistancePercent) &&
+    analysis.distanceToResistancePercent >= 0
+  );
+}
+
 interface ExecutionChecks {
   usdcPairAvailable: boolean;
   suitableForSpotGrid: boolean;
@@ -22,6 +61,7 @@ interface ExecutionChecks {
   trend15mAcceptable: boolean;
   volatilitySufficient: boolean;
   insideReasonableRange: boolean;
+  supportResistanceValid: boolean;
 }
 
 interface GridSetupRecommendation {
@@ -81,6 +121,7 @@ export class ScannerComponent {
   private readonly fb = inject(FormBuilder);
   private readonly cdr = inject(ChangeDetectorRef);
   private usdcExecutionRequestId = 0;
+  readonly formatMarketPrice = formatMarketPrice;
 
   quoteCoins: string[] = ['USDC'];
   isFiltersExpanded = false;
@@ -272,13 +313,13 @@ export class ScannerComponent {
       '======================',
       `Symbol: ${candidate.symbol}`,
       `Status: ${candidate.status}`,
-      `Price: ${this.formatNumber(candidate.market.lastPrice, 4)}`,
+      `Price: ${this.formatMarketPrice(candidate.market.lastPrice)}`,
       `24h Change: ${this.formatNumber(candidate.market.change24hPercent, 2)}%`,
       `24h Turnover: ${this.formatNumber(candidate.market.turnover24h, 0)}`,
       '',
       '1H',
-      `Support: ${this.formatNumber(candidate.analysis1h?.support, 4)}`,
-      `Resistance: ${this.formatNumber(candidate.analysis1h?.resistance, 4)}`,
+      `Support: ${this.formatMarketPrice(candidate.analysis1h?.support)}`,
+      `Resistance: ${this.formatMarketPrice(candidate.analysis1h?.resistance)}`,
       `Range: ${this.formatNumber(candidate.analysis1h?.rangePercent, 2)}%`,
       `Position: ${this.formatNumber(candidate.analysis1h?.positionInRangePercent, 0)}%`,
       `Volatility: ${this.formatNumber(candidate.analysis1h?.volatilityPercent, 2)}%`,
@@ -286,8 +327,8 @@ export class ScannerComponent {
       `Score: ${this.formatNumber(candidate.analysis1h?.gridScore, 2)}`,
       '',
       '15M',
-      `Support: ${this.formatNumber(candidate.analysis15m?.support, 4)}`,
-      `Resistance: ${this.formatNumber(candidate.analysis15m?.resistance, 4)}`,
+      `Support: ${this.formatMarketPrice(candidate.analysis15m?.support)}`,
+      `Resistance: ${this.formatMarketPrice(candidate.analysis15m?.resistance)}`,
       `Range: ${this.formatNumber(candidate.analysis15m?.rangePercent, 2)}%`,
       `Position: ${this.formatNumber(candidate.analysis15m?.positionInRangePercent, 0)}%`,
       `Volatility: ${this.formatNumber(candidate.analysis15m?.volatilityPercent, 2)}%`,
@@ -781,6 +822,7 @@ export class ScannerComponent {
     analysis15m: MarketAnalysis,
   ): UsdcExecutionSection {
     const minTurnover = Math.max(0, this.form.controls.minTurnover.value ?? 25000);
+    const supportResistanceValid = hasValidAnalysisStructure(analysis1h) && hasValidAnalysisStructure(analysis15m);
     const liquiditySufficient = analysis1h.turnover24h >= minTurnover;
     const lowLiquidity = !liquiditySufficient;
     const closeToSupport =
@@ -813,13 +855,16 @@ export class ScannerComponent {
     const extremePump = analysis1h.change24hPercent > 15;
 
     const marketSuitableForGrid =
+      supportResistanceValid &&
       !lowLiquidity &&
       !oneHourVolatilityVeryLow &&
       !breakdownBelowSupport &&
       analysis1h.trendDirection !== 'DOWN';
 
     let marketSuitabilityReason = 'GOOD FOR GRID: liquidity and 1H structure are acceptable.';
-    if (lowLiquidity) {
+    if (!supportResistanceValid) {
+      marketSuitabilityReason = 'WEAK FOR GRID: support/resistance data is invalid or unavailable.';
+    } else if (lowLiquidity) {
       marketSuitabilityReason = 'WEAK FOR GRID: insufficient liquidity for reliable execution.';
     } else if (oneHourVolatilityVeryLow) {
       marketSuitabilityReason = 'WEAK FOR GRID: 1H volatility is too low for practical grid spacing.';
@@ -830,7 +875,7 @@ export class ScannerComponent {
     }
 
     let status: EntryTiming;
-    if (!marketSuitableForGrid || severePump || extremePump) {
+    if (!supportResistanceValid || !marketSuitableForGrid || severePump || extremePump) {
       status = 'NO_ENTRY';
     } else if (breakoutRetestCandidate) {
       status = 'WAIT_BREAKOUT_RETEST';
@@ -881,6 +926,7 @@ export class ScannerComponent {
       insideReasonableRange,
       suitableForSpotGrid: marketSuitableForGrid,
       usdcPairAvailable: true,
+      supportResistanceValid,
     });
 
     return {
@@ -919,6 +965,7 @@ export class ScannerComponent {
         trend15mAcceptable,
         volatilitySufficient,
         insideReasonableRange,
+        supportResistanceValid,
       },
       recommendation,
     };
@@ -935,10 +982,15 @@ export class ScannerComponent {
       trend15mAcceptable: false,
       volatilitySufficient: false,
       insideReasonableRange: false,
+      supportResistanceValid: false,
     };
   }
 
   private executionReason(status: ExecutionStatus, checks: ExecutionChecks): string {
+    if (!checks.supportResistanceValid) {
+      return 'Invalid support/resistance data for Grid execution.';
+    }
+
     if (status === 'READY') {
       return 'USDC execution pair meets the Spot Grid entry requirements.';
     }

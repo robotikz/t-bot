@@ -1,6 +1,5 @@
 import type { Candle } from '../market/market.types.js';
 import type { TrendAnalysis, TrendDirection } from './analysis.types.js';
-import { round } from '../../shared/utils/math.js';
 
 function calculateEma(values: number[], period: number): number {
   if (values.length === 0) return 0;
@@ -49,9 +48,9 @@ export function analyzeTrend(candles: Candle[]): TrendAnalysis {
 
   return {
     trendDirection: resolveTrendDirection(ema20, ema50, priceChangeWindowPercent),
-    trendStrength: round(trendStrength),
-    priceChangeWindowPercent: round(priceChangeWindowPercent),
-    ema20: round(ema20),
-    ema50: round(ema50)
+    trendStrength,
+    priceChangeWindowPercent,
+    ema20,
+    ema50
   };
 }
