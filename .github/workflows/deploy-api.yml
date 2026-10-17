@@ -122,6 +122,7 @@ jobs:
             --set-env-vars="NODE_ENV=production,API_PREFIX=api,BYBIT_ENABLED=true,BYBIT_TESTNET=false,MARKET_DATA_MAX_CANDLES=500"
 
       - name: Resolve Cloud Run URL
+        id: resolve-url
         run: |
           SERVICE_URL=$(gcloud run services describe "${API_RUN_SERVICE}" \
             --project="${GCP_PROJECT_ID}" \
@@ -134,17 +135,25 @@ jobs:
           fi
 
           echo "SERVICE_URL=${SERVICE_URL}" >> "$GITHUB_ENV"
+          echo "service_url=${SERVICE_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Mint smoke-test identity token
+        id: smoke-auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA_EMAIL }}
+          token_format: id_token
+          id_token_audience: ${{ steps.resolve-url.outputs.service_url }}
 
       - name: Verify health endpoint
         run: |
-          ID_TOKEN=$(gcloud auth print-identity-token --audiences="${SERVICE_URL}")
           curl --fail --silent --show-error \
-            -H "Authorization: Bearer ${ID_TOKEN}" \
+            -H "Authorization: Bearer ${{ steps.smoke-auth.outputs.id_token }}" \
             "${SERVICE_URL}/api/health"
 
       - name: Verify market-data endpoint
         run: |
-          ID_TOKEN=$(gcloud auth print-identity-token --audiences="${SERVICE_URL}")
           curl --fail --silent --show-error \
-            -H "Authorization: Bearer ${ID_TOKEN}" \
+            -H "Authorization: Bearer ${{ steps.smoke-auth.outputs.id_token }}" \
             "${SERVICE_URL}/api/market-data/candles?broker=bybit&symbol=BTCUSDT&timeframe=1h&limit=1"
