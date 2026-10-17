@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { AfterViewInit, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, inject } from '@angular/core';
 import { ScannerCandidate, ScannerService } from './scanner.service';
-import { createChart, CandlestickSeries, CandlestickData, CrosshairMode } from 'lightweight-charts';
+import type { CandlestickSeries, CandlestickData, CrosshairMode } from 'lightweight-charts';
 
 @Component({
   selector: 'app-coin-analysis-modal',
@@ -66,14 +66,33 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
     this.cdr.markForCheck();
 
     try {
+      // dynamic import to avoid bundler interop problems with lightweight-charts ESM/CJS
+      const lc: any = await import('lightweight-charts');
+      console.debug('lightweight-charts module:', lc);
+      const createChart = lc.createChart ?? lc.default?.createChart;
+      const runtimeCrosshairMode = lc.CrosshairMode ?? lc.default?.CrosshairMode;
+      if (typeof createChart !== 'function') {
+        console.error('lightweight-charts: createChart is not a function', lc);
+        throw new Error('lightweight-charts import failed');
+      }
+
       // create charts
-      this.chart1h = createChart(host1, { layout: { background: { color: '#fff' }, textColor: '#333' }, crosshair: { mode: CrosshairMode.Normal } });
+      this.chart1h = createChart(host1, { layout: { background: { color: '#fff' }, textColor: '#333' }, crosshair: { mode: runtimeCrosshairMode?.Normal ?? 0 } });
+      if (!this.chart1h || typeof (this.chart1h as any).addCandlestickSeries !== 'function') {
+        console.error('lightweight-charts: createChart returned unexpected object for 1h:', this.chart1h);
+        throw new Error('lightweight-charts API missing: addCandlestickSeries');
+      }
       this.series1h = this.chart1h.addCandlestickSeries();
 
-      this.chart15m = createChart(host15, { layout: { background: { color: '#fff' }, textColor: '#333' }, crosshair: { mode: CrosshairMode.Normal } });
+      this.chart15m = createChart(host15, { layout: { background: { color: '#fff' }, textColor: '#333' }, crosshair: { mode: runtimeCrosshairMode?.Normal ?? 0 } });
+      if (!this.chart15m || typeof (this.chart15m as any).addCandlestickSeries !== 'function') {
+        console.error('lightweight-charts: createChart returned unexpected object for 15m:', this.chart15m);
+        throw new Error('lightweight-charts API missing: addCandlestickSeries');
+      }
       this.series15m = this.chart15m.addCandlestickSeries();
-    } catch (err) {
+    } catch (error) {
       // if chart lib missing, notify and bail
+      console.error('Chart init error', error);
       this.notify.emit({ message: 'Chart initialization failed', type: 'error' });
       this.isChartsLoading = false;
       this.cdr.markForCheck();
@@ -105,7 +124,8 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
         this.addPriceLine(this.series1h, s, '#ff0000');
         this.addPriceLine(this.series1h, r, '#0070f3');
       }
-    } catch (err) {
+    } catch (error) {
+      console.error('Chart data load error', error);
       this.notify.emit({ message: 'Failed to load chart data', type: 'error' });
     }
 
@@ -213,7 +233,8 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
       a.click();
       a.remove();
       this.notify.emit({ message: 'Chart downloaded as PNG', type: 'info' });
-    } catch (err) {
+    } catch (error) {
+      console.error('Copy/download charts error', error);
       this.notify.emit({ message: 'Failed to copy/download charts', type: 'error' });
     }
   }
