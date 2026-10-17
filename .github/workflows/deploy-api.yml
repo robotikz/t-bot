@@ -119,7 +119,7 @@ jobs:
             --service-account="${RUNTIME_SA_EMAIL}" \
             --no-allow-unauthenticated \
             --port=3000 \
-            --set-env-vars="NODE_ENV=production,PORT=3000,API_PREFIX=api,BYBIT_ENABLED=true,BYBIT_TESTNET=false,MARKET_DATA_MAX_CANDLES=500"
+            --set-env-vars="NODE_ENV=production,API_PREFIX=api,BYBIT_ENABLED=true,BYBIT_TESTNET=false,MARKET_DATA_MAX_CANDLES=500"
 
       - name: Resolve Cloud Run URL
         run: |
