@@ -11,16 +11,7 @@ export class HealthController {
 
   @Get()
   async check() {
-    let database = 'disconnected';
-
-    try {
-      const result = (await this.prisma.$queryRaw`SELECT 1 AS ok`) as Array<{ ok: number }>;
-      if (Array.isArray(result) && result.length > 0) {
-        database = 'connected';
-      }
-    } catch {
-      database = 'disconnected';
-    }
+    const database = await this.prisma.ping();
 
     return {
       status: 'ok',

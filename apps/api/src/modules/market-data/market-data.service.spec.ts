@@ -15,6 +15,7 @@ describe('MarketDataService', () => {
       findByBrokerSymbolTimeframeRange: ReturnType<typeof vi.fn>;
     };
     configService?: { getNumber: ReturnType<typeof vi.fn> };
+    prismaService?: { isDatabaseAvailable: ReturnType<typeof vi.fn> };
   }) {
     const brokerManager = dependencies?.brokerManager ?? new BrokerManager();
     const candleRepository = dependencies?.candleRepository ?? {
@@ -23,11 +24,13 @@ describe('MarketDataService', () => {
       findByBrokerSymbolTimeframeRange: vi.fn(async () => []),
     };
     const configService = dependencies?.configService ?? { getNumber: vi.fn(() => 100) };
+    const prismaService = dependencies?.prismaService ?? { isDatabaseAvailable: vi.fn(() => true) };
 
     return {
-      service: new MarketDataService(brokerManager, candleRepository as never, configService as never),
+      service: new MarketDataService(brokerManager, candleRepository as never, configService as never, prismaService as never),
       candleRepository,
       configService,
+      prismaService,
       brokerManager,
     };
   }
@@ -169,6 +172,40 @@ describe('MarketDataService', () => {
     expect(candles[1].isClosed).toBe(true);
   });
 
+  it('fetches candles directly from Bybit when the database is disabled', async () => {
+    const { service, brokerManager, candleRepository } = createService({
+      prismaService: { isDatabaseAvailable: vi.fn(() => false) },
+    });
+    const getCandles = vi.fn(async () => [
+      {
+        symbol: 'BTCUSDT',
+        timeframe: Timeframe.H1,
+        openTime: new Date('2026-09-16T10:00:00.000Z'),
+        closeTime: new Date('2026-09-16T10:59:59.999Z'),
+        open: 100,
+        high: 110,
+        low: 95,
+        close: 105,
+        volume: 25,
+      },
+    ]);
+
+    brokerManager.register(
+      new InMemoryBrokerAdapter('bybit', 'Bybit', BrokerType.CRYPTO_EXCHANGE, [BrokerCapability.MARKET_DATA], {
+        getMarkets: vi.fn(async () => [{ symbol: 'BTCUSDT' }]),
+        getInstrument: vi.fn(async () => null),
+        getCandles,
+      }),
+    );
+
+    const candles = await service.getCandles({ brokerId: 'bybit', symbol: 'BTCUSDT', timeframe: Timeframe.H1, limit: 1 });
+
+    expect(getCandles).toHaveBeenCalledOnce();
+    expect(candleRepository.findByBrokerSymbolTimeframe).not.toHaveBeenCalled();
+    expect(candles).toHaveLength(1);
+    expect(candles[0].openTime.toISOString()).toBe('2026-09-16T10:00:00.000Z');
+  });
+
   it('loads historical candles in a date range via the market-data provider', async () => {
     const { service, brokerManager, candleRepository } = createService({ configService: { getNumber: vi.fn(() => 10) } });
     const getCandles = vi
@@ -269,6 +306,73 @@ describe('MarketDataService', () => {
     expect(getCandles).toHaveBeenCalledTimes(1);
     expect(candles).toHaveLength(3);
     expect(candleRepository.upsertMany).toHaveBeenCalled();
+  });
+
+  it('loads historical candles directly when the database is disabled', async () => {
+    const { service, brokerManager, candleRepository } = createService({
+      configService: { getNumber: vi.fn(() => 10) },
+      prismaService: { isDatabaseAvailable: vi.fn(() => false) },
+    });
+    const getCandles = vi
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          symbol: 'BTCUSDT',
+          timeframe: Timeframe.H1,
+          openTime: new Date('2026-01-01T02:00:00.000Z'),
+          closeTime: new Date('2026-01-01T02:59:59.999Z'),
+          open: 102,
+          high: 102,
+          low: 102,
+          close: 102,
+          volume: 1,
+        },
+        {
+          symbol: 'BTCUSDT',
+          timeframe: Timeframe.H1,
+          openTime: new Date('2026-01-01T01:00:00.000Z'),
+          closeTime: new Date('2026-01-01T01:59:59.999Z'),
+          open: 101,
+          high: 101,
+          low: 101,
+          close: 101,
+          volume: 1,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          symbol: 'BTCUSDT',
+          timeframe: Timeframe.H1,
+          openTime: new Date('2026-01-01T00:00:00.000Z'),
+          closeTime: new Date('2026-01-01T00:59:59.999Z'),
+          open: 100,
+          high: 100,
+          low: 100,
+          close: 100,
+          volume: 1,
+        },
+      ]);
+
+    brokerManager.register(
+      new InMemoryBrokerAdapter('bybit', 'Bybit', BrokerType.CRYPTO_EXCHANGE, [BrokerCapability.MARKET_DATA], {
+        getMarkets: vi.fn(async () => [{ symbol: 'BTCUSDT' }]),
+        getInstrument: vi.fn(async () => null),
+        getCandles,
+      }),
+    );
+
+    const candles = await service.loadCandlesInRange({
+      brokerId: 'bybit',
+      symbol: 'BTCUSDT',
+      timeframe: Timeframe.H1,
+      startTime: new Date('2026-01-01T00:00:00.000Z'),
+      endTime: new Date('2026-01-01T02:59:59.999Z'),
+    });
+
+    expect(getCandles).toHaveBeenCalled();
+    expect(candleRepository.upsertMany).not.toHaveBeenCalled();
+    expect(candleRepository.findByBrokerSymbolTimeframeRange).not.toHaveBeenCalled();
+    expect(candles).toHaveLength(2);
   });
 
   it('rejects invalid candles', async () => {

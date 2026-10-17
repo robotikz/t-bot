@@ -3,54 +3,79 @@ import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { vi } from 'vitest';
 import { AppModule } from './../src/app.module.js';
-import { MarketDataService } from './../src/modules/market-data/market-data.service.js';
-
-function createCandle(index: number, price: number) {
-  const openTime = new Date(Date.UTC(2026, 0, 1, index));
-  const closeTime = new Date(Date.UTC(2026, 0, 1, index, 59, 59, 999));
-
-  return {
-    symbol: 'BTCUSDT',
-    timeframe: 'H1',
-    openTime,
-    closeTime,
-    open: price,
-    high: price,
-    low: price,
-    close: price,
-    volume: 1,
-    brokerId: 'bybit',
-    isClosed: true,
-  };
-}
 
 describe('BacktestsController (e2e)', () => {
   let app: INestApplication;
-  const marketDataService = {
-    loadCandlesInRange: vi.fn(),
-  };
+  const originalFetch = globalThis.fetch;
 
   beforeAll(() => {
-    process.env.BYBIT_ENABLED = 'false';
+    process.env.DATABASE_URL = '';
+    process.env.BYBIT_ENABLED = 'true';
+    process.env.BYBIT_API_BASE_URL = 'https://api.bybit.eu';
+    process.env.BYBIT_BASE_URL = 'https://api.bybit.eu';
+    process.env.BYBIT_TIMEOUT_MS = '10000';
     process.env.TRADING212_ENABLED = 'false';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL) => {
+        const url = new URL(input.toString());
+
+        if (url.pathname.endsWith('/v5/market/instruments-info')) {
+          return {
+            ok: true,
+            status: 200,
+            text: async () =>
+              JSON.stringify({
+                retCode: 0,
+                retMsg: 'OK',
+                result: {
+                  category: 'spot',
+                  list: [
+                    {
+                      symbol: 'BTCUSDT',
+                      baseCoin: 'BTC',
+                      quoteCoin: 'USDT',
+                      status: 'Trading',
+                    },
+                  ],
+                },
+              }),
+          } as Response;
+        }
+
+        if (url.pathname.endsWith('/v5/market/kline')) {
+          return {
+            ok: true,
+            status: 200,
+            text: async () =>
+              JSON.stringify({
+                retCode: 0,
+                retMsg: 'OK',
+                result: {
+                  category: 'spot',
+                  symbol: 'BTCUSDT',
+                  list: [
+                    ['1704081600000', '115.0', '116.0', '114.0', '115.0', '10.0', '1150.0'],
+                    ['1704078000000', '110.0', '111.0', '109.0', '110.0', '10.0', '1100.0'],
+                    ['1704074400000', '105.0', '106.0', '104.0', '105.0', '10.0', '1050.0'],
+                    ['1704070800000', '102.0', '103.0', '101.0', '102.0', '10.0', '1020.0'],
+                    ['1704067200000', '100.0', '101.0', '99.0', '100.0', '10.0', '1000.0'],
+                  ],
+                },
+              }),
+          } as Response;
+        }
+
+        throw new Error(`Unexpected URL ${url.toString()}`);
+      }),
+    );
   });
 
   beforeEach(async () => {
-    marketDataService.loadCandlesInRange.mockReset();
-    marketDataService.loadCandlesInRange.mockResolvedValue([
-      createCandle(0, 100),
-      createCandle(1, 105),
-      createCandle(2, 110),
-      createCandle(3, 120),
-      createCandle(4, 115),
-    ]);
-
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    })
-      .overrideProvider(MarketDataService)
-      .useValue(marketDataService)
-      .compile();
+    }).compile();
 
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api');
@@ -65,8 +90,8 @@ describe('BacktestsController (e2e)', () => {
         symbol: 'BTCUSDT',
         timeframe: '1h',
         strategyId: 'ema-crossover',
-        startTime: '2026-01-01T00:00:00.000Z',
-        endTime: '2026-01-01T04:59:59.999Z',
+        startTime: '2024-01-01T00:00:00.000Z',
+        endTime: '2024-01-01T04:59:59.999Z',
         initialCapital: 1000,
         feeRate: 0.001,
       })
@@ -88,8 +113,8 @@ describe('BacktestsController (e2e)', () => {
         symbol: 'BTCUSDT',
         timeframe: '1h',
         strategyId: 'missing',
-        startTime: '2026-01-01T00:00:00.000Z',
-        endTime: '2026-01-01T04:59:59.999Z',
+        startTime: '2024-01-01T00:00:00.000Z',
+        endTime: '2024-01-01T04:59:59.999Z',
         initialCapital: 1000,
         feeRate: 0.001,
       })
@@ -104,8 +129,8 @@ describe('BacktestsController (e2e)', () => {
         symbol: 'BTCUSDT',
         timeframe: '1h',
         strategyId: 'ema-crossover',
-        startTime: '2026-01-01T00:00:00.000Z',
-        endTime: '2026-01-01T04:59:59.999Z',
+        startTime: '2024-01-01T00:00:00.000Z',
+        endTime: '2024-01-01T04:59:59.999Z',
         initialCapital: 0,
         feeRate: 1.5,
       })
@@ -121,7 +146,7 @@ describe('BacktestsController (e2e)', () => {
         timeframe: '1h',
         strategyId: 'ema-crossover',
         startTime: 'invalid-date',
-        endTime: '2026-01-01T04:59:59.999Z',
+        endTime: '2024-01-01T04:59:59.999Z',
         initialCapital: 1000,
         feeRate: 0.001,
       })
@@ -129,8 +154,6 @@ describe('BacktestsController (e2e)', () => {
   });
 
   it('returns an error when no candles are available', () => {
-    marketDataService.loadCandlesInRange.mockResolvedValueOnce([]);
-
     return request(app.getHttpServer())
       .post('/api/backtests')
       .send({
@@ -138,11 +161,22 @@ describe('BacktestsController (e2e)', () => {
         symbol: 'BTCUSDT',
         timeframe: '1h',
         strategyId: 'ema-crossover',
-        startTime: '2026-01-01T00:00:00.000Z',
-        endTime: '2026-01-01T04:59:59.999Z',
+        startTime: '2030-01-01T00:00:00.000Z',
+        endTime: '2030-01-01T04:59:59.999Z',
         initialCapital: 1000,
         feeRate: 0.001,
       })
       .expect(400);
+  });
+
+  afterEach(async () => {
+    if (app) {
+      await app.close();
+    }
+  });
+
+  afterAll(() => {
+    vi.unstubAllGlobals();
+    globalThis.fetch = originalFetch;
   });
 });

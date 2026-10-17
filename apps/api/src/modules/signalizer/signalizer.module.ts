@@ -4,7 +4,6 @@ import { SignalizerController } from './signalizer.controller.js';
 import { SignalizerService } from './signalizer.service.js';
 import { PrismaSignalHistoryRepository } from './repositories/prisma-signal-history.repository.js';
 import { PrismaSignalTransitionRepository } from './repositories/prisma-signal-transition.repository.js';
-import { PrismaService } from '../../prisma/prisma.service.js';
 
 @Module({
   imports: [PrismaModule],
@@ -13,7 +12,6 @@ import { PrismaService } from '../../prisma/prisma.service.js';
     SignalizerService,
     PrismaSignalHistoryRepository,
     PrismaSignalTransitionRepository,
-    PrismaService
   ],
   exports: [SignalizerService]
 })

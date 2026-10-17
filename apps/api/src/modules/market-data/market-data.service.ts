@@ -4,6 +4,7 @@ import { CandleRepository } from '../candles/candle.repository.js';
 import { ConfigService } from '../config/config.service.js';
 import { Candle, Timeframe } from '../brokers/domain/types.js';
 import { MARKET_DATA_DEFAULT_PAGE_SIZE } from './market-data.constants.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
 
 type FetchCandlesRequest = {
   brokerId: string;
@@ -48,6 +49,7 @@ export class MarketDataService {
     private readonly brokerManager: BrokerManager,
     private readonly candleRepository: CandleRepository,
     private readonly configService: ConfigService,
+    private readonly prismaService: PrismaService,
   ) {}
 
   async getMarkets(brokerId: string) {
@@ -74,6 +76,10 @@ export class MarketDataService {
   }
 
   async getCandles(request: FetchCandlesRequest): Promise<StoredCandle[]> {
+    if (!this.prismaService.isDatabaseAvailable()) {
+      return this.fetchCandles(request);
+    }
+
     const limit = this.resolveLimit(request.limit);
     const candles = await this.candleRepository.findByBrokerSymbolTimeframe({
       brokerId: request.brokerId,
@@ -86,6 +92,10 @@ export class MarketDataService {
   }
 
   async getCandlesInRange(request: ReadCandlesRangeRequest): Promise<StoredCandle[]> {
+    if (!this.prismaService.isDatabaseAvailable()) {
+      return this.fetchCandlesInRange(request);
+    }
+
     if (!(request.startTime instanceof Date) || Number.isNaN(request.startTime.getTime())) {
       throw new BadRequestException('startTime must be a valid date');
     }
@@ -110,6 +120,10 @@ export class MarketDataService {
   }
 
   async loadCandles(request: FetchCandlesRequest): Promise<StoredCandle[]> {
+    if (!this.prismaService.isDatabaseAvailable()) {
+      return this.fetchCandles(request);
+    }
+
     const limit = this.resolveLimit(request.limit);
     const provider = this.brokerManager.getMarketDataProvider(request.brokerId);
     const pageSize = Math.min(MARKET_DATA_DEFAULT_PAGE_SIZE, limit);
@@ -149,6 +163,10 @@ export class MarketDataService {
   }
 
   async loadCandlesInRange(request: ReadCandlesRangeRequest): Promise<StoredCandle[]> {
+    if (!this.prismaService.isDatabaseAvailable()) {
+      return this.fetchCandlesInRange(request);
+    }
+
     if (!(request.startTime instanceof Date) || Number.isNaN(request.startTime.getTime())) {
       throw new BadRequestException('startTime must be a valid date');
     }
@@ -308,6 +326,56 @@ export class MarketDataService {
 
   private sortCandles(candles: Candle[]) {
     return [...candles].sort((left, right) => left.openTime.getTime() - right.openTime.getTime());
+  }
+
+  private async fetchCandlesInRange(request: ReadCandlesRangeRequest): Promise<StoredCandle[]> {
+    if (!(request.startTime instanceof Date) || Number.isNaN(request.startTime.getTime())) {
+      throw new BadRequestException('startTime must be a valid date');
+    }
+
+    if (!(request.endTime instanceof Date) || Number.isNaN(request.endTime.getTime())) {
+      throw new BadRequestException('endTime must be a valid date');
+    }
+
+    if (request.startTime.getTime() >= request.endTime.getTime()) {
+      throw new BadRequestException('startTime must be before endTime');
+    }
+
+    const maxCandles = this.configService.getNumber('MARKET_DATA_MAX_CANDLES', 500);
+    const pageSize = Math.min(MARKET_DATA_DEFAULT_PAGE_SIZE, maxCandles);
+    const provider = this.brokerManager.getMarketDataProvider(request.brokerId);
+    const fetchedCandles: Candle[] = [];
+    let beforeOpenTime = new Date(request.endTime.getTime() + 1);
+
+    while (fetchedCandles.length < maxCandles) {
+      const remaining = maxCandles - fetchedCandles.length;
+      const currentLimit = Math.min(pageSize, remaining);
+      const page = await provider.getCandles(request.symbol, request.timeframe, currentLimit, { beforeOpenTime });
+
+      if (!page.length) {
+        break;
+      }
+
+      const normalizedPage = this.sortCandles(page);
+      fetchedCandles.push(...normalizedPage);
+
+      const oldestCandle = normalizedPage[0];
+      if (!oldestCandle) {
+        break;
+      }
+
+      if (oldestCandle.openTime.getTime() <= request.startTime.getTime() || page.length < currentLimit) {
+        break;
+      }
+
+      beforeOpenTime = oldestCandle.openTime;
+    }
+
+    return this.decorateCandles(request.brokerId, fetchedCandles).filter(
+      (candle) =>
+        candle.openTime.getTime() >= request.startTime.getTime() &&
+        candle.openTime.getTime() <= request.endTime.getTime(),
+    );
   }
 
   private candleIdentity(candle: Candle & { brokerId: string }) {

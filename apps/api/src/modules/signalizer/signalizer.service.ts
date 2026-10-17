@@ -15,6 +15,8 @@ export class SignalizerService {
   ) {}
 
   async createObservation(input: any) {
+    this.prismaService?.assertDatabaseAvailable();
+
     const {
       symbol,
       pairAnalyzed,
@@ -218,6 +220,8 @@ export class SignalizerService {
   }
 
   async getHistory(filter: HistoryFilter) {
+    this.prismaService?.assertDatabaseAvailable();
+
     const res = await this.historyRepo.find({
       symbol: filter.symbol?.toUpperCase(),
       state: filter.state,
@@ -230,6 +234,8 @@ export class SignalizerService {
   }
 
   async getTransitions(filter: TransitionFilter) {
+    this.prismaService?.assertDatabaseAvailable();
+
     const res = await this.transitionRepo.find({
       symbol: filter.symbol?.toUpperCase(),
       from: filter.from,
@@ -239,6 +245,8 @@ export class SignalizerService {
   }
 
   async getCurrentState(symbol: string) {
+    this.prismaService?.assertDatabaseAvailable();
+
     const latest = await this.historyRepo.findLatestBySymbol(symbol.toUpperCase());
     if (!latest) return { symbol: symbol.toUpperCase(), currentState: null };
 

@@ -17,6 +17,7 @@ describe('AppController (e2e)', () => {
   const originalFetch = globalThis.fetch;
 
   beforeAll(() => {
+    process.env.DATABASE_URL = '';
     process.env.BYBIT_ENABLED = 'true';
     process.env.BYBIT_API_BASE_URL = 'https://api.bybit.eu';
     process.env.BYBIT_BASE_URL = 'https://api.bybit.eu';
@@ -146,6 +147,26 @@ describe('AppController (e2e)', () => {
       .expect(({ body }) => {
         expect(body.success).toBe(true);
         expect(body.data.status).toBe('ok');
+        expect(body.data.database).toBe('disabled');
+      });
+  });
+
+  it('returns controlled unavailable responses for database-backed routes', async () => {
+    await request(app.getHttpServer())
+      .get('/api/candles')
+      .query({ broker: 'bybit', symbol: 'BTCUSDT', timeframe: '1h' })
+      .expect(503)
+      .expect(({ body }) => {
+        expect(body.success).toBe(false);
+        expect(String(body.message)).toContain('Database is disabled');
+      });
+
+    await request(app.getHttpServer())
+      .get('/api/orders')
+      .expect(503)
+      .expect(({ body }) => {
+        expect(body.success).toBe(false);
+        expect(String(body.message)).toContain('Database is disabled');
       });
   });
 
