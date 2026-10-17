@@ -15,24 +15,22 @@ function createConfig(databaseUrl: string) {
 
 describe('PrismaService', () => {
   it('starts without connecting when DATABASE_URL is absent', async () => {
-    const connectSpy = vi.spyOn(PrismaService.prototype as any, '$connect').mockResolvedValue(undefined as never);
     const service = new PrismaService(createConfig(''));
+    const connectSpy = vi.fn();
+    (service as any).$connect = connectSpy;
 
     await service.onModuleInit();
 
     expect(connectSpy).not.toHaveBeenCalled();
     expect(service.getDatabaseStatus()).toBe('disabled');
-
-    connectSpy.mockRestore();
   });
 
   it('marks the database disconnected when connect fails', async () => {
-    const connectSpy = vi.spyOn(PrismaService.prototype as any, '$connect').mockRejectedValue(new Error('unreachable'));
     const service = new PrismaService(createConfig('postgresql://user:pass@127.0.0.1:65432/test'));
+    const connectSpy = vi.fn().mockRejectedValue(new Error('unreachable'));
+    (service as any).$connect = connectSpy;
 
     await expect(service.onModuleInit()).resolves.toBeUndefined();
     expect(service.getDatabaseStatus()).toBe('disconnected');
-
-    connectSpy.mockRestore();
   });
 });

@@ -3,7 +3,9 @@ import { PrismaSignalHistoryRepository } from '../src/modules/signalizer/reposit
 import { PrismaSignalTransitionRepository } from '../src/modules/signalizer/repositories/prisma-signal-transition.repository.js';
 import { SignalizerService } from '../src/modules/signalizer/signalizer.service.js';
 
-describe('Signalizer PostgreSQL concurrency integration', () => {
+const describeIfDatabase = process.env.DATABASE_URL ? describe : describe.skip;
+
+describeIfDatabase('Signalizer PostgreSQL concurrency integration', () => {
   let prisma: PrismaClient | null = null;
   let historyRepo: PrismaSignalHistoryRepository | null = null;
   let transitionRepo: PrismaSignalTransitionRepository | null = null;
@@ -12,7 +14,7 @@ describe('Signalizer PostgreSQL concurrency integration', () => {
   beforeAll(async () => {
     const dbUrl = process.env.DATABASE_URL;
     if (!dbUrl) {
-      throw new Error('DATABASE_URL not set — Postgres concurrency integration tests require a database');
+      return;
     }
 
     prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
