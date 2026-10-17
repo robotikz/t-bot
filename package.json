@@ -8,7 +8,8 @@
     "packages/*"
   ],
   "scripts": {
-    "api:start:dev": "pnpm --dir apps/api start:dev",
+    "dev:apis": "pnpm run api:start:dev & pnpm run scanner:dev & wait",
+    "api:start:dev": "PORT=3001 pnpm --dir apps/api start:dev",
     "api:build": "pnpm --dir apps/api build",
     "api:start": "pnpm --dir apps/api start",
     "scanner:dev": "pnpm --dir apps/bybit-market-scanner dev",
