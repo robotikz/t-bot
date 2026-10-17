@@ -3,7 +3,7 @@ import { AfterViewInit, ChangeDetectorRef, Component, EventEmitter, Input, OnCha
 import { ScannerCandidate, ScannerService } from './scanner.service';
 import type { CandlestickSeries, CandlestickData, CrosshairMode } from 'lightweight-charts';
 
-function formatMarketPrice(value: number | null | undefined): string {
+export function formatAdaptiveMarketPrice(value: number | null | undefined): string {
   if (value === null || value === undefined || !Number.isFinite(value) || value <= 0) {
     return 'N/A';
   }
@@ -16,6 +16,25 @@ function formatMarketPrice(value: number | null | undefined): string {
   }).format(value);
 }
 
+export function formatAnalysisRange(low: number | null | undefined, high: number | null | undefined): string {
+  if (low === null || low === undefined || high === null || high === undefined) {
+    return 'N/A';
+  }
+
+  if (!Number.isFinite(low) || !Number.isFinite(high) || low <= 0 || high <= 0) {
+    return 'N/A';
+  }
+
+  return `${formatAdaptiveMarketPrice(low)} - ${formatAdaptiveMarketPrice(high)}`;
+}
+
+function createAdaptivePriceFormat(): { type: 'custom'; formatter: (priceValue: number) => string } {
+  return {
+    type: 'custom',
+    formatter: formatAdaptiveMarketPrice,
+  };
+}
+
 @Component({
   selector: 'app-coin-analysis-modal',
   standalone: true,
@@ -26,7 +45,7 @@ function formatMarketPrice(value: number | null | undefined): string {
 export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnDestroy {
   private readonly scannerService = inject(ScannerService);
   private readonly cdr = inject(ChangeDetectorRef);
-  readonly formatMarketPrice = formatMarketPrice;
+  readonly formatMarketPrice = formatAdaptiveMarketPrice;
 
   @Input() candidate: ScannerCandidate | null = null;
   @Input() usdcExecution: any | null = null;
@@ -51,6 +70,19 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
 
   // symbol|timeframe keys for which a history load already succeeded this session
   private static readonly loadedHistory = new Set<string>();
+
+  get analysis1h() {
+    return this.candidate?.analysis1h ?? this.usdcExecution?.analysis1h ?? null;
+  }
+
+  get analysis15m() {
+    return this.candidate?.analysis15m ?? this.usdcExecution?.analysis15m ?? null;
+  }
+
+  formatRangeFor(timeframe: '1h' | '15m'): string {
+    const analysis = timeframe === '1h' ? this.analysis1h : this.analysis15m;
+    return formatAnalysisRange(analysis?.rangeLow, analysis?.rangeHigh);
+  }
 
   ngAfterViewInit(): void {
     void this.initOrUpdateCharts();
@@ -96,6 +128,7 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
       console.debug('lightweight-charts module:', lc);
       const createChart = lc.createChart ?? lc.default?.createChart;
       const runtimeCrosshairMode = lc.CrosshairMode ?? lc.default?.CrosshairMode;
+      const adaptivePriceFormat = createAdaptivePriceFormat();
       if (typeof createChart !== 'function') {
         console.error('lightweight-charts: createChart is not a function', lc);
         throw new Error('lightweight-charts import failed');
@@ -110,10 +143,12 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
           upColor: '#16a34a',
           downColor: '#dc2626',
           borderVisible: false,
+          priceFormat: adaptivePriceFormat,
         });
       } else if (typeof (this.chart1h as any).addCandlestickSeries === 'function') {
         // fallback for v4 API
         this.series1h = (this.chart1h as any).addCandlestickSeries();
+        this.series1h?.applyOptions?.({ priceFormat: adaptivePriceFormat });
       } else {
         console.error('lightweight-charts: no candlestick series API available for 1h', { chart: this.chart1h, lc });
         throw new Error('lightweight-charts candlestick API missing');
@@ -125,9 +160,11 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
           upColor: '#16a34a',
           downColor: '#dc2626',
           borderVisible: false,
+          priceFormat: adaptivePriceFormat,
         });
       } else if (typeof (this.chart15m as any).addCandlestickSeries === 'function') {
         this.series15m = (this.chart15m as any).addCandlestickSeries();
+        this.series15m?.applyOptions?.({ priceFormat: adaptivePriceFormat });
       } else {
         console.error('lightweight-charts: no candlestick series API available for 15m', { chart: this.chart15m, lc });
         throw new Error('lightweight-charts candlestick API missing');
