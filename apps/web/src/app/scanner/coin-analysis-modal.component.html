@@ -1,13 +1,11 @@
 <div class="analysis-modal-backdrop" role="dialog" aria-modal="true">
   <div class="analysis-modal" tabindex="-1">
     <header class="analysis-modal-header">
-      <div class="analysis-title">
-        <h2>{{ candidate?.symbol }}</h2>
-        <div class="analysis-meta">
-          <span>Price: {{ formatMarketPrice(candidate?.market.lastPrice) }}</span>
-          <span>Status: <strong>{{ candidate?.status }}</strong></span>
-          <span>Score: {{ candidate?.score | number: '1.2-2' }}</span>
-        </div>
+      <h2>{{ candidate?.symbol }}</h2>
+      <div class="analysis-meta">
+        <span>Price: {{ formatMarketPrice(candidate?.market.lastPrice) }}</span>
+        <span>Status: <strong>{{ candidate?.status }}</strong></span>
+        <span>Score: {{ candidate?.score | number: '1.2-2' }}</span>
       </div>
       <div class="modal-actions">
         <button type="button" class="copy-button" (click)="requestCopyAnalysis()">Copy for Analysis</button>
@@ -17,37 +15,6 @@
     </header>
 
     <div class="analysis-modal-body">
-      <section class="analysis-summary" aria-label="Market summary">
-        <div class="summary-card">
-          <span class="summary-label">Price</span>
-          <strong>{{ formatMarketPrice(candidate?.market.lastPrice) }}</strong>
-        </div>
-
-        <div class="summary-card">
-          <span class="summary-label">Status</span>
-          <strong>{{ candidate?.status }}</strong>
-        </div>
-
-        <div class="summary-card">
-          <span class="summary-label">Score</span>
-          <strong>{{ candidate?.score | number: '1.2-2' }}</strong>
-        </div>
-
-        <div class="summary-card summary-card-wide">
-          <span class="summary-label">1H support / resistance / range</span>
-          <strong>
-            {{ formatMarketPrice(analysis1h?.support) }} · {{ formatMarketPrice(analysis1h?.resistance) }} · {{ formatRangeFor('1h') }}
-          </strong>
-        </div>
-
-        <div class="summary-card summary-card-wide">
-          <span class="summary-label">15M support / resistance / range</span>
-          <strong>
-            {{ formatMarketPrice(analysis15m?.support) }} · {{ formatMarketPrice(analysis15m?.resistance) }} · {{ formatRangeFor('15m') }}
-          </strong>
-        </div>
-      </section>
-
       <details class="collapsible-section modal-analysis" open>
         <summary>Analysis data</summary>
         <div class="collapsible-content">

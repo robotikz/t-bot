@@ -3,7 +3,7 @@ import { AfterViewInit, ChangeDetectorRef, Component, EventEmitter, Input, OnCha
 import { ScannerCandidate, ScannerService } from './scanner.service';
 import type { CandlestickSeries, CandlestickData, CrosshairMode } from 'lightweight-charts';
 
-export function formatAdaptiveMarketPrice(value: number | null | undefined): string {
+function formatMarketPrice(value: number | null | undefined): string {
   if (value === null || value === undefined || !Number.isFinite(value) || value <= 0) {
     return 'N/A';
   }
@@ -16,25 +16,6 @@ export function formatAdaptiveMarketPrice(value: number | null | undefined): str
   }).format(value);
 }
 
-export function formatAnalysisRange(low: number | null | undefined, high: number | null | undefined): string {
-  if (low === null || low === undefined || high === null || high === undefined) {
-    return 'N/A';
-  }
-
-  if (!Number.isFinite(low) || !Number.isFinite(high) || low <= 0 || high <= 0) {
-    return 'N/A';
-  }
-
-  return `${formatAdaptiveMarketPrice(low)} - ${formatAdaptiveMarketPrice(high)}`;
-}
-
-function createAdaptivePriceFormat(): { type: 'custom'; formatter: (priceValue: number) => string } {
-  return {
-    type: 'custom',
-    formatter: formatAdaptiveMarketPrice,
-  };
-}
-
 @Component({
   selector: 'app-coin-analysis-modal',
   standalone: true,
@@ -45,7 +26,7 @@ function createAdaptivePriceFormat(): { type: 'custom'; formatter: (priceValue: 
 export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnDestroy {
   private readonly scannerService = inject(ScannerService);
   private readonly cdr = inject(ChangeDetectorRef);
-  readonly formatMarketPrice = formatAdaptiveMarketPrice;
+  readonly formatMarketPrice = formatMarketPrice;
 
   @Input() candidate: ScannerCandidate | null = null;
   @Input() usdcExecution: any | null = null;
@@ -70,19 +51,6 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
 
   // symbol|timeframe keys for which a history load already succeeded this session
   private static readonly loadedHistory = new Set<string>();
-
-  get analysis1h() {
-    return this.candidate?.analysis1h ?? this.usdcExecution?.analysis1h ?? null;
-  }
-
-  get analysis15m() {
-    return this.candidate?.analysis15m ?? this.usdcExecution?.analysis15m ?? null;
-  }
-
-  formatRangeFor(timeframe: '1h' | '15m'): string {
-    const analysis = timeframe === '1h' ? this.analysis1h : this.analysis15m;
-    return formatAnalysisRange(analysis?.rangeLow, analysis?.rangeHigh);
-  }
 
   ngAfterViewInit(): void {
     void this.initOrUpdateCharts();
@@ -128,7 +96,6 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
       console.debug('lightweight-charts module:', lc);
       const createChart = lc.createChart ?? lc.default?.createChart;
       const runtimeCrosshairMode = lc.CrosshairMode ?? lc.default?.CrosshairMode;
-      const adaptivePriceFormat = createAdaptivePriceFormat();
       if (typeof createChart !== 'function') {
         console.error('lightweight-charts: createChart is not a function', lc);
         throw new Error('lightweight-charts import failed');
@@ -143,12 +110,10 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
           upColor: '#16a34a',
           downColor: '#dc2626',
           borderVisible: false,
-          priceFormat: adaptivePriceFormat,
         });
       } else if (typeof (this.chart1h as any).addCandlestickSeries === 'function') {
         // fallback for v4 API
         this.series1h = (this.chart1h as any).addCandlestickSeries();
-        this.series1h?.applyOptions?.({ priceFormat: adaptivePriceFormat });
       } else {
         console.error('lightweight-charts: no candlestick series API available for 1h', { chart: this.chart1h, lc });
         throw new Error('lightweight-charts candlestick API missing');
@@ -160,11 +125,9 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
           upColor: '#16a34a',
           downColor: '#dc2626',
           borderVisible: false,
-          priceFormat: adaptivePriceFormat,
         });
       } else if (typeof (this.chart15m as any).addCandlestickSeries === 'function') {
         this.series15m = (this.chart15m as any).addCandlestickSeries();
-        this.series15m?.applyOptions?.({ priceFormat: adaptivePriceFormat });
       } else {
         console.error('lightweight-charts: no candlestick series API available for 15m', { chart: this.chart15m, lc });
         throw new Error('lightweight-charts candlestick API missing');
@@ -273,44 +236,6 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
     await this.requestJson('/api/market-data/candles/load', symbol, timeframe, limit);
   }
 
-  private waitForNextPaint(): Promise<void> {
-    return new Promise((resolve) => {
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-    });
-  }
-
-  private renderChartHost(host: HTMLElement): HTMLCanvasElement {
-    const hostRect = host.getBoundingClientRect();
-    const canvases = Array.from(host.querySelectorAll('canvas'));
-    const visibleCanvases = canvases.filter((canvas) => {
-      const rect = canvas.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0 && canvas.width > 0 && canvas.height > 0;
-    });
-
-    if (!hostRect.width || !hostRect.height || !visibleCanvases.length) {
-      throw new Error('chart-host-not-ready');
-    }
-
-    const dpr = window.devicePixelRatio || 1;
-    const exportCanvas = document.createElement('canvas');
-    exportCanvas.width = Math.ceil(hostRect.width * dpr);
-    exportCanvas.height = Math.ceil(hostRect.height * dpr);
-
-    const ctx = exportCanvas.getContext('2d');
-    if (!ctx) throw new Error('no-canvas-ctx');
-
-    ctx.scale(dpr, dpr);
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, hostRect.width, hostRect.height);
-
-    for (const canvas of visibleCanvases) {
-      const rect = canvas.getBoundingClientRect();
-      ctx.drawImage(canvas, rect.left - hostRect.left, rect.top - hostRect.top, rect.width, rect.height);
-    }
-
-    return exportCanvas;
-  }
-
   private addPriceLine(series: any, price: number, color = '#ff0000'): void {
     if (!series || typeof series.createPriceLine !== 'function') return;
     try {
@@ -361,29 +286,24 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
         return;
       }
 
-      await this.waitForNextPaint();
+      const canvas1 = host1.querySelector('canvas');
+      const canvas15 = host15.querySelector('canvas');
+      if (!canvas1 || !canvas15) {
+        this.notify.emit({ message: 'Chart canvases not found', type: 'error' });
+        return;
+      }
 
-      const chart1 = this.renderChartHost(host1);
-      const chart15 = this.renderChartHost(host15);
-      const padding = 24;
-      const gap = 20;
-      const dpr = window.devicePixelRatio || 1;
-      const chart1Width = chart1.width / dpr;
-      const chart1Height = chart1.height / dpr;
-      const chart15Width = chart15.width / dpr;
-      const chart15Height = chart15.height / dpr;
-      const w = Math.max(chart1Width, chart15Width) + padding * 2;
-      const h = chart1Height + chart15Height + gap + padding * 2;
+      const w = Math.max(canvas1.width, canvas15.width);
+      const h = canvas1.height + canvas15.height;
       const out = document.createElement('canvas');
-      out.width = Math.ceil(w * dpr);
-      out.height = Math.ceil(h * dpr);
+      out.width = w;
+      out.height = h;
       const ctx = out.getContext('2d');
       if (!ctx) throw new Error('no-canvas-ctx');
-      ctx.scale(dpr, dpr);
       ctx.fillStyle = '#fff';
       ctx.fillRect(0, 0, w, h);
-      ctx.drawImage(chart1, padding, padding, chart1Width, chart1Height);
-      ctx.drawImage(chart15, padding, padding + chart1Height + gap, chart15Width, chart15Height);
+      ctx.drawImage(canvas1, 0, 0);
+      ctx.drawImage(canvas15, 0, canvas1.height);
 
       if (navigator.clipboard && (navigator.clipboard as any).write) {
         const blob = await new Promise<Blob | null>((resolve) => out.toBlob((b) => resolve(b), 'image/png'));
