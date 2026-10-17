@@ -153,7 +153,7 @@ describe('MarketData (e2e)', () => {
 
   it('/api/market-data/candles/load persists candles once and returns chronological data', async () => {
     await request(app.getHttpServer())
-      .get(`/api/market-data/candles/load?broker=bybit&symbol=${e2eSymbol}&timeframe=1h&limit=2`)
+      .post(`/api/market-data/candles/load?broker=bybit&symbol=${e2eSymbol}&timeframe=1h&limit=2`)
       .expect(200)
       .expect(({ body }) => {
         expect(body.success).toBe(true);
@@ -163,7 +163,7 @@ describe('MarketData (e2e)', () => {
       });
 
     await request(app.getHttpServer())
-      .get(`/api/market-data/candles/load?broker=bybit&symbol=${e2eSymbol}&timeframe=1h&limit=2`)
+      .post(`/api/market-data/candles/load?broker=bybit&symbol=${e2eSymbol}&timeframe=1h&limit=2`)
       .expect(200);
 
     await request(app.getHttpServer())

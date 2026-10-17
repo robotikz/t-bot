@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, HttpCode, Post, Query } from '@nestjs/common';
 import { MarketDataService } from './market-data.service.js';
 import { ListMarketDataCandlesDto } from './dto/list-market-data-candles.dto.js';
 import { ListMarketDataMarketsDto } from './dto/list-market-data-markets.dto.js';
@@ -41,7 +41,8 @@ export class MarketDataController {
     });
   }
 
-  @Get('candles/load')
+  @Post('candles/load')
+  @HttpCode(200)
   async loadCandles(@Query() query: ListMarketDataCandlesDto) {
     if (query.startTime && query.endTime) {
       return this.marketDataService.loadCandlesInRange({

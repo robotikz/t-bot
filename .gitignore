@@ -2,3 +2,4 @@ node_modules
 *.tsbuildinfo
 tsconfig.build.tsbuildinfo
 tmp_*
+tsconfig.build.tsbuildinfo

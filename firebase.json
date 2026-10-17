@@ -8,6 +8,13 @@
     ],
     "rewrites": [
       {
+        "source": "/api/market-data/**",
+        "run": {
+          "serviceId": "api",
+          "region": "europe-west2"
+        }
+      },
+      {
         "source": "/api/**",
         "run": {
           "serviceId": "bybit-market-scanner",

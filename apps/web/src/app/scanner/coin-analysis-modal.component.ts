@@ -3,6 +3,8 @@ import { AfterViewInit, ChangeDetectorRef, Component, EventEmitter, Input, OnCha
 import { ScannerCandidate, ScannerService } from './scanner.service';
 import type { CandlestickSeries, CandlestickData, CrosshairMode } from 'lightweight-charts';
 
+const UTC_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 function formatMarketPrice(value: number | null | undefined): string {
   if (value === null || value === undefined || !Number.isFinite(value) || value <= 0) {
     return 'N/A';
@@ -14,6 +16,104 @@ function formatMarketPrice(value: number | null | undefined): string {
     minimumFractionDigits: fractionDigits,
     maximumFractionDigits: fractionDigits,
   }).format(value);
+}
+
+export function formatChartTimeAxisLabel(time: any): string {
+  if (time === null || time === undefined) {
+    return '';
+  }
+
+  let date: Date;
+  if (typeof time === 'number') {
+    date = new Date(time * 1000);
+  } else if (time instanceof Date) {
+    date = time;
+  } else if (typeof time === 'string') {
+    date = new Date(time);
+  } else if (typeof time === 'object' && 'year' in time && 'month' in time && 'day' in time) {
+    date = new Date(Date.UTC(time.year, time.month - 1, time.day));
+  } else {
+    return '';
+  }
+
+  if (!Number.isFinite(date.getTime())) {
+    return '';
+  }
+
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  const month = UTC_MONTHS[date.getUTCMonth()] ?? '';
+  const hour = String(date.getUTCHours()).padStart(2, '0');
+  const minute = String(date.getUTCMinutes()).padStart(2, '0');
+  return `${day} ${month} ${hour}:${minute}`;
+}
+
+type ChartScreenshotSource = {
+  takeScreenshot?: (addTopLayer?: boolean, includeCrosshair?: boolean) => HTMLCanvasElement | null;
+};
+
+export async function buildChartsExportCanvas(
+  chart1h: ChartScreenshotSource | null | undefined,
+  chart15m: ChartScreenshotSource | null | undefined,
+  symbol: string | null | undefined,
+): Promise<HTMLCanvasElement | null> {
+  if (!chart1h || !chart15m) return null;
+
+  if (typeof document !== 'undefined' && 'fonts' in document && (document as any).fonts?.ready) {
+    try {
+      await (document as any).fonts.ready;
+    } catch {
+      // ignore font readiness errors and continue
+    }
+  }
+
+  await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+
+  const screenshot1h = chart1h.takeScreenshot?.(true, false) ?? null;
+  const screenshot15m = chart15m.takeScreenshot?.(true, false) ?? null;
+  if (!screenshot1h || !screenshot15m) return null;
+
+  const padding = 24;
+  const sectionGap = 28;
+  const titleGap = 10;
+  const titleFont = '600 20px Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  const titleHeight = 24;
+  const chartWidth = Math.max(screenshot1h.width, screenshot15m.width);
+  const chartHeight1 = titleHeight + titleGap + screenshot1h.height;
+  const chartHeight2 = titleHeight + titleGap + screenshot15m.height;
+  const width = chartWidth + padding * 2;
+  const height = padding * 2 + chartHeight1 + sectionGap + chartHeight2;
+
+  const out = document.createElement('canvas');
+  out.width = width;
+  out.height = height;
+  const ctx = out.getContext('2d');
+  if (!ctx) throw new Error('no-canvas-ctx');
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.fillStyle = '#0f172a';
+  ctx.font = titleFont;
+  ctx.textBaseline = 'top';
+
+  const trimmedSymbol = symbol?.trim() || 'Charts';
+  const title1 = `${trimmedSymbol} · 1H`;
+  const title15 = `${trimmedSymbol} · 15M`;
+  const screenshot1hX = padding + Math.floor((chartWidth - screenshot1h.width) / 2);
+  const screenshot15mX = padding + Math.floor((chartWidth - screenshot15m.width) / 2);
+
+  let y = padding;
+  ctx.fillText(title1, padding, y);
+  y += titleHeight + titleGap;
+  ctx.drawImage(screenshot1h, screenshot1hX, y);
+
+  y += screenshot1h.height + sectionGap;
+  ctx.fillText(title15, padding, y);
+  y += titleHeight + titleGap;
+  ctx.drawImage(screenshot15m, screenshot15mX, y);
+
+  return out;
 }
 
 @Component({
@@ -101,8 +201,18 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
         throw new Error('lightweight-charts import failed');
       }
 
+      const sharedChartOptions = {
+        layout: { background: { color: '#fff' }, textColor: '#333' },
+        crosshair: { mode: runtimeCrosshairMode?.Normal ?? 0 },
+        timeScale: {
+          timeVisible: true,
+          secondsVisible: false,
+          tickMarkFormatter: formatChartTimeAxisLabel,
+        },
+      };
+
       // create charts
-      this.chart1h = createChart(host1, { layout: { background: { color: '#fff' }, textColor: '#333' }, crosshair: { mode: runtimeCrosshairMode?.Normal ?? 0 } });
+      this.chart1h = createChart(host1, sharedChartOptions);
       // Prefer v5 API: addSeries(CandlestickSeries, options)
       const runtimeCandlestickSeries = lc.CandlestickSeries ?? lc.default?.CandlestickSeries;
       if (runtimeCandlestickSeries) {
@@ -119,7 +229,7 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
         throw new Error('lightweight-charts candlestick API missing');
       }
 
-      this.chart15m = createChart(host15, { layout: { background: { color: '#fff' }, textColor: '#333' }, crosshair: { mode: runtimeCrosshairMode?.Normal ?? 0 } });
+      this.chart15m = createChart(host15, sharedChartOptions);
       if (runtimeCandlestickSeries) {
         this.series15m = this.chart15m.addSeries(runtimeCandlestickSeries, {
           upColor: '#16a34a',
@@ -218,9 +328,9 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
     return Array.from(byTime.values()).sort((a, b) => (a.time as number) - (b.time as number));
   }
 
-  private async requestJson(path: string, symbol: string, timeframe: string, limit: number): Promise<any[]> {
+  private async requestJson(path: string, symbol: string, timeframe: string, limit: number, method: 'GET' | 'POST' = 'GET'): Promise<any[]> {
     const q = new URLSearchParams({ broker: 'bybit', symbol, timeframe, limit: String(limit) });
-    const res = await fetch(`${path}?${q.toString()}`);
+    const res = await fetch(`${path}?${q.toString()}`, { method });
     if (!res.ok) throw new Error(`${path} failed: HTTP ${res.status}`);
     const data = await res.json();
     if (Array.isArray(data)) return data;
@@ -233,7 +343,7 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
   }
 
   private async loadHistory(symbol: string, timeframe: string, limit: number): Promise<void> {
-    await this.requestJson('/api/market-data/candles/load', symbol, timeframe, limit);
+    await this.requestJson('/api/market-data/candles/load', symbol, timeframe, limit, 'POST');
   }
 
   private addPriceLine(series: any, price: number, color = '#ff0000'): void {
@@ -279,42 +389,25 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
 
   async copyChartsAsImage(): Promise<void> {
     try {
-      const host1 = document.getElementById('chart-1h');
-      const host15 = document.getElementById('chart-15m');
-      if (!host1 || !host15) {
+      const exportCanvas = await buildChartsExportCanvas(this.chart1h, this.chart15m, this.candidate?.symbol);
+      if (!exportCanvas) {
         this.notify.emit({ message: 'Charts not available', type: 'error' });
         return;
       }
 
-      const canvas1 = host1.querySelector('canvas');
-      const canvas15 = host15.querySelector('canvas');
-      if (!canvas1 || !canvas15) {
-        this.notify.emit({ message: 'Chart canvases not found', type: 'error' });
-        return;
-      }
-
-      const w = Math.max(canvas1.width, canvas15.width);
-      const h = canvas1.height + canvas15.height;
-      const out = document.createElement('canvas');
-      out.width = w;
-      out.height = h;
-      const ctx = out.getContext('2d');
+      const ctx = exportCanvas.getContext('2d');
       if (!ctx) throw new Error('no-canvas-ctx');
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, w, h);
-      ctx.drawImage(canvas1, 0, 0);
-      ctx.drawImage(canvas15, 0, canvas1.height);
+      const blob = await this.canvasToBlob(exportCanvas);
+      if (!blob) throw new Error('blob-failed');
 
       if (navigator.clipboard && (navigator.clipboard as any).write) {
-        const blob = await new Promise<Blob | null>((resolve) => out.toBlob((b) => resolve(b), 'image/png'));
-        if (!blob) throw new Error('blob-failed');
         // @ts-ignore
         await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
         this.notify.emit({ message: 'Charts copied to clipboard', type: 'info' });
         return;
       }
 
-      const url = out.toDataURL('image/png');
+      const url = exportCanvas.toDataURL('image/png');
       const a = document.createElement('a');
       a.href = url;
       a.download = `${this.candidate?.symbol ?? 'charts'}.png`;
@@ -326,5 +419,9 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
       console.error('Copy/download charts error', error);
       this.notify.emit({ message: 'Failed to copy/download charts', type: 'error' });
     }
+  }
+
+  private async canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
+    return await new Promise<Blob | null>((resolve) => canvas.toBlob((blob) => resolve(blob), 'image/png'));
   }
 }
