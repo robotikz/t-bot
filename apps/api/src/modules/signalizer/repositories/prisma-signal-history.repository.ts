@@ -93,7 +93,7 @@ export class PrismaSignalHistoryRepository implements SignalHistoryRepository {
       take: filter.limit ?? 100
     });
 
-    return items.map((rec) => ({
+    return items.map((rec: any) => ({
         id: rec.id,
       symbol: rec.symbol,
       sourceSymbol: rec.sourceSymbol,

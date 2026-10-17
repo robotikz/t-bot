@@ -50,7 +50,7 @@ export class PrismaSignalTransitionRepository implements SignalTransitionReposit
     if (filter.to) where.toState = filter.to;
 
     const items = await this.prisma.signalTransition.findMany({ where, orderBy: { observedAt: 'desc' } });
-    return items.map((rec) => ({
+    return items.map((rec: any) => ({
       id: rec.id,
       symbol: rec.symbol,
       fromState: rec.fromState,
