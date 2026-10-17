@@ -39,7 +39,47 @@
   flex: 1 1 auto;
 }
 
+.collapsible-section {
+  margin-bottom: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.collapsible-section summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 12px 14px;
+  font-weight: 700;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.collapsible-section summary::-webkit-details-marker {
+  display: none;
+}
+
+.collapsible-section summary::after {
+  content: '▾';
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+.collapsible-section[open] summary::after {
+  content: '▴';
+}
+
+.collapsible-content {
+  padding: 0 14px 14px;
+}
+
 .modal-charts {
+  display: block;
+}
+
+.charts-content {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
@@ -75,6 +115,7 @@
   background: #f7f7f7;
   padding: 8px;
   border-radius: 4px;
+  margin: 0;
 }
 
 .modal-actions {

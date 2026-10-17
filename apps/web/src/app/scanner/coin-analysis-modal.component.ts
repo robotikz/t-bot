@@ -78,18 +78,35 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
 
       // create charts
       this.chart1h = createChart(host1, { layout: { background: { color: '#fff' }, textColor: '#333' }, crosshair: { mode: runtimeCrosshairMode?.Normal ?? 0 } });
-      if (!this.chart1h || typeof (this.chart1h as any).addCandlestickSeries !== 'function') {
-        console.error('lightweight-charts: createChart returned unexpected object for 1h:', this.chart1h);
-        throw new Error('lightweight-charts API missing: addCandlestickSeries');
+      // Prefer v5 API: addSeries(CandlestickSeries, options)
+      const runtimeCandlestickSeries = lc.CandlestickSeries ?? lc.default?.CandlestickSeries;
+      if (runtimeCandlestickSeries) {
+        this.series1h = this.chart1h.addSeries(runtimeCandlestickSeries, {
+          upColor: '#16a34a',
+          downColor: '#dc2626',
+          borderVisible: false,
+        });
+      } else if (typeof (this.chart1h as any).addCandlestickSeries === 'function') {
+        // fallback for v4 API
+        this.series1h = (this.chart1h as any).addCandlestickSeries();
+      } else {
+        console.error('lightweight-charts: no candlestick series API available for 1h', { chart: this.chart1h, lc });
+        throw new Error('lightweight-charts candlestick API missing');
       }
-      this.series1h = this.chart1h.addCandlestickSeries();
 
       this.chart15m = createChart(host15, { layout: { background: { color: '#fff' }, textColor: '#333' }, crosshair: { mode: runtimeCrosshairMode?.Normal ?? 0 } });
-      if (!this.chart15m || typeof (this.chart15m as any).addCandlestickSeries !== 'function') {
-        console.error('lightweight-charts: createChart returned unexpected object for 15m:', this.chart15m);
-        throw new Error('lightweight-charts API missing: addCandlestickSeries');
+      if (runtimeCandlestickSeries) {
+        this.series15m = this.chart15m.addSeries(runtimeCandlestickSeries, {
+          upColor: '#16a34a',
+          downColor: '#dc2626',
+          borderVisible: false,
+        });
+      } else if (typeof (this.chart15m as any).addCandlestickSeries === 'function') {
+        this.series15m = (this.chart15m as any).addCandlestickSeries();
+      } else {
+        console.error('lightweight-charts: no candlestick series API available for 15m', { chart: this.chart15m, lc });
+        throw new Error('lightweight-charts candlestick API missing');
       }
-      this.series15m = this.chart15m.addCandlestickSeries();
     } catch (error) {
       // if chart lib missing, notify and bail
       console.error('Chart init error', error);

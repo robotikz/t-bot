@@ -15,25 +15,31 @@
     </header>
 
     <div class="analysis-modal-body">
-      <section class="modal-charts">
-        <div class="chart-card">
-          <h3>1H</h3>
-          <div id="chart-1h" class="chart-host" aria-label="1 hour chart">
-            <div *ngIf="isChartsLoading" class="chart-loading">Loading chart...</div>
+      <details class="collapsible-section modal-analysis" open>
+        <summary>Analysis data</summary>
+        <div class="collapsible-content">
+          <pre>{{ analysisText }}</pre>
+        </div>
+      </details>
+
+      <details class="collapsible-section modal-charts">
+        <summary>Charts</summary>
+        <div class="collapsible-content charts-content">
+          <div class="chart-card">
+            <h3>1H</h3>
+            <div id="chart-1h" class="chart-host" aria-label="1 hour chart">
+              <div *ngIf="isChartsLoading" class="chart-loading">Loading chart...</div>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <h3>15M</h3>
+            <div id="chart-15m" class="chart-host" aria-label="15 minute chart">
+              <div *ngIf="isChartsLoading" class="chart-loading">Loading chart...</div>
+            </div>
           </div>
         </div>
-
-        <div class="chart-card">
-          <h3>15M</h3>
-          <div id="chart-15m" class="chart-host" aria-label="15 minute chart">
-            <div *ngIf="isChartsLoading" class="chart-loading">Loading chart...</div>
-          </div>
-        </div>
-      </section>
-
-      <section class="modal-analysis">
-        <pre>{{ analysisText }}</pre>
-      </section>
+      </details>
     </div>
   </div>
 </div>
