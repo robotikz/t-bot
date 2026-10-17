@@ -1,0 +1,150 @@
+name: Deploy API (Cloud Run)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/api/**'
+      - 'apps/api/Dockerfile'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/deploy-api.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ vars.GCP_REGION }}
+  GAR_REPOSITORY: ${{ vars.GAR_REPOSITORY }}
+  RUNTIME_SA_EMAIL: ${{ vars.GCP_RUNTIME_SA_EMAIL }}
+  GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+  GCP_DEPLOY_SA_EMAIL: ${{ vars.GCP_DEPLOY_SA_EMAIL }}
+  API_RUN_SERVICE: api
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run API tests
+        run: pnpm --dir apps/api test
+
+      - name: Build API
+        run: pnpm api:build
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA_EMAIL }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+
+      - name: Validate required variables
+        run: |
+          if [ -z "${GCP_PROJECT_ID}" ]; then
+            echo "GCP_PROJECT_ID is missing"
+            exit 1
+          fi
+
+          if [ -z "${GCP_REGION}" ]; then
+            echo "GCP_REGION is missing"
+            exit 1
+          fi
+
+          if [ -z "${GAR_REPOSITORY}" ]; then
+            echo "GAR_REPOSITORY is missing"
+            exit 1
+          fi
+
+          if [ -z "${RUNTIME_SA_EMAIL}" ]; then
+            echo "GCP_RUNTIME_SA_EMAIL is missing"
+            exit 1
+          fi
+
+          if [ -z "${GCP_WIF_PROVIDER}" ]; then
+            echo "GCP_WIF_PROVIDER is missing"
+            exit 1
+          fi
+
+          if [ -z "${GCP_DEPLOY_SA_EMAIL}" ]; then
+            echo "GCP_DEPLOY_SA_EMAIL is missing"
+            exit 1
+          fi
+
+      - name: Validate runtime service account exists
+        run: |
+          gcloud iam service-accounts describe "${RUNTIME_SA_EMAIL}" \
+            --project="${GCP_PROJECT_ID}" \
+            --quiet
+
+      - name: Build and push API image
+        run: |
+          IMAGE_URI="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/api/api:${GITHUB_SHA}"
+          docker build \
+            --file apps/api/Dockerfile \
+            --tag="${IMAGE_URI}" \
+            .
+          docker push "${IMAGE_URI}"
+          echo "IMAGE_URI=${IMAGE_URI}" >> "$GITHUB_ENV"
+
+      - name: Deploy API to Cloud Run
+        run: |
+          gcloud run deploy "${API_RUN_SERVICE}" \
+            --project="${GCP_PROJECT_ID}" \
+            --region="${GCP_REGION}" \
+            --image="${IMAGE_URI}" \
+            --service-account="${RUNTIME_SA_EMAIL}" \
+            --no-allow-unauthenticated \
+            --port=3000 \
+            --set-env-vars="NODE_ENV=production,PORT=3000,API_PREFIX=api,BYBIT_ENABLED=true,BYBIT_TESTNET=false,MARKET_DATA_MAX_CANDLES=500"
+
+      - name: Resolve Cloud Run URL
+        run: |
+          SERVICE_URL=$(gcloud run services describe "${API_RUN_SERVICE}" \
+            --project="${GCP_PROJECT_ID}" \
+            --region="${GCP_REGION}" \
+            --format='value(status.url)')
+
+          if [ -z "${SERVICE_URL}" ]; then
+            echo "Unable to resolve Cloud Run service URL"
+            exit 1
+          fi
+
+          echo "SERVICE_URL=${SERVICE_URL}" >> "$GITHUB_ENV"
+
+      - name: Verify health endpoint
+        run: |
+          ID_TOKEN=$(gcloud auth print-identity-token --audiences="${SERVICE_URL}")
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${ID_TOKEN}" \
+            "${SERVICE_URL}/api/health"
+
+      - name: Verify market-data endpoint
+        run: |
+          ID_TOKEN=$(gcloud auth print-identity-token --audiences="${SERVICE_URL}")
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${ID_TOKEN}" \
+            "${SERVICE_URL}/api/market-data/candles?broker=bybit&symbol=BTCUSDT&timeframe=1h&limit=1"
