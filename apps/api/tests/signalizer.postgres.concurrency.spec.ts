@@ -22,6 +22,8 @@ describe('Signalizer PostgreSQL concurrency integration', () => {
       throw new Error('Unable to connect to Postgres — Postgres concurrency integration tests require a reachable database');
     }
 
+    (prisma as any).assertDatabaseAvailable = () => {};
+
     historyRepo = new PrismaSignalHistoryRepository(prisma as any);
     transitionRepo = new PrismaSignalTransitionRepository(prisma as any);
     svc = new SignalizerService(historyRepo as any, transitionRepo as any, prisma as any);
