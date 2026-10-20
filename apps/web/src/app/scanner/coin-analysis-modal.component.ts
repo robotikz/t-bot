@@ -187,6 +187,74 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
     this.close.emit();
   }
 
+  async copyAnalysisAndCharts(): Promise<void> {
+    const text = this.analysisText ?? '';
+
+    try {
+      const exportCanvas = await buildChartsExportCanvas(this.chart1h, this.chart15m, this.candidate?.symbol);
+
+      if (navigator.clipboard && (navigator.clipboard as any).write && typeof ClipboardItem !== 'undefined') {
+        const clipboardPayload: Record<string, Blob | Promise<Blob>> = {};
+
+        if (text) {
+          clipboardPayload['text/plain'] = new Blob([text], { type: 'text/plain' });
+        }
+
+        if (exportCanvas) {
+          const blob = await this.canvasToBlob(exportCanvas);
+          if (blob) {
+            clipboardPayload['image/png'] = blob;
+          }
+        }
+
+        if (Object.keys(clipboardPayload).length > 0) {
+          // @ts-ignore
+          await navigator.clipboard.write([new ClipboardItem(clipboardPayload)]);
+          this.notify.emit({ message: 'Analysis and charts copied to clipboard', type: 'info' });
+          return;
+        }
+      }
+
+      let copiedText = false;
+      let copiedImage = false;
+
+      if (text && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        copiedText = true;
+      }
+
+      if (exportCanvas) {
+        const blob = await this.canvasToBlob(exportCanvas);
+        if (blob && navigator.clipboard && (navigator.clipboard as any).write && typeof ClipboardItem !== 'undefined') {
+          // @ts-ignore
+          await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+          copiedImage = true;
+        } else {
+          const url = exportCanvas.toDataURL('image/png');
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${this.candidate?.symbol ?? 'charts'}.png`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        }
+      }
+
+      if (copiedText && copiedImage) {
+        this.notify.emit({ message: 'Analysis and charts copied to clipboard', type: 'info' });
+      } else if (copiedText) {
+        this.notify.emit({ message: 'Analysis copied. Chart downloaded as PNG', type: 'info' });
+      } else if (copiedImage) {
+        this.notify.emit({ message: 'Charts copied to clipboard', type: 'info' });
+      } else {
+        this.notify.emit({ message: 'Nothing to copy', type: 'error' });
+      }
+    } catch (error) {
+      console.error('Copy analysis + charts error', error);
+      this.notify.emit({ message: 'Failed to copy analysis + charts', type: 'error' });
+    }
+  }
+
   onAnalysisDataToggle(detailsElement: HTMLDetailsElement): void {
     this.isAnalysisDataExpanded = detailsElement.open;
     this.saveSectionState();
