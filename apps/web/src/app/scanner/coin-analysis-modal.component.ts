@@ -3,6 +3,13 @@ import { AfterViewInit, ChangeDetectorRef, Component, EventEmitter, Input, OnCha
 import { ScannerCandidate, ScannerService } from './scanner.service';
 import type { CandlestickSeries, CandlestickData, CrosshairMode } from 'lightweight-charts';
 
+interface ModalSectionsStorage {
+  analysisDataExpanded: boolean;
+  chartsExpanded: boolean;
+}
+
+const MODAL_SECTIONS_STORAGE_KEY = 'tbot.scanner.modal.sections.v1';
+
 const UTC_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function formatMarketPrice(value: number | null | undefined): string {
@@ -148,9 +155,15 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
   status15m: 'loading' | 'ready' | 'empty' | 'error' = 'loading';
   status1hMessage = 'Loading chart...';
   status15mMessage = 'Loading chart...';
+  isAnalysisDataExpanded = true;
+  isChartsExpanded = false;
 
   // symbol|timeframe keys for which a history load already succeeded this session
   private static readonly loadedHistory = new Set<string>();
+
+  constructor() {
+    this.restoreSectionState();
+  }
 
   ngAfterViewInit(): void {
     void this.initOrUpdateCharts();
@@ -172,6 +185,16 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
 
   requestClose(): void {
     this.close.emit();
+  }
+
+  onAnalysisDataToggle(detailsElement: HTMLDetailsElement): void {
+    this.isAnalysisDataExpanded = detailsElement.open;
+    this.saveSectionState();
+  }
+
+  onChartsToggle(detailsElement: HTMLDetailsElement): void {
+    this.isChartsExpanded = detailsElement.open;
+    this.saveSectionState();
   }
 
   private async initOrUpdateCharts(): Promise<void> {
@@ -423,5 +446,51 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
 
   private async canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
     return await new Promise<Blob | null>((resolve) => canvas.toBlob((blob) => resolve(blob), 'image/png'));
+  }
+
+  private restoreSectionState(): void {
+    const saved = this.readFromStorage<ModalSectionsStorage>(MODAL_SECTIONS_STORAGE_KEY);
+    if (!saved || typeof saved !== 'object') {
+      return;
+    }
+
+    this.isAnalysisDataExpanded = typeof saved.analysisDataExpanded === 'boolean' ? saved.analysisDataExpanded : true;
+    this.isChartsExpanded = typeof saved.chartsExpanded === 'boolean' ? saved.chartsExpanded : false;
+  }
+
+  private saveSectionState(): void {
+    this.writeToStorage<ModalSectionsStorage>(MODAL_SECTIONS_STORAGE_KEY, {
+      analysisDataExpanded: this.isAnalysisDataExpanded,
+      chartsExpanded: this.isChartsExpanded,
+    });
+  }
+
+  private readFromStorage<T>(key: string): T | null {
+    if (typeof localStorage === 'undefined') {
+      return null;
+    }
+
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) {
+        return null;
+      }
+
+      return JSON.parse(raw) as T;
+    } catch {
+      return null;
+    }
+  }
+
+  private writeToStorage<T>(key: string, value: T): void {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+      // ignore storage write failures
+    }
   }
 }

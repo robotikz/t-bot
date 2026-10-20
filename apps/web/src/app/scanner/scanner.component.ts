@@ -11,6 +11,23 @@ type EntryTiming = 'READY' | 'WAIT_PULLBACK' | 'WAIT_BREAKOUT_RETEST' | 'WAIT_CO
 type ExecutionStatus = EntryTiming | 'UNAVAILABLE';
 type ExecutionDecision = 'CAN_LAUNCH' | 'WAIT' | 'DO_NOT_LAUNCH' | 'UNAVAILABLE';
 type GridRisk = 'LOW' | 'MEDIUM' | 'HIGH';
+type ScannerTimeframe = '1h' | '15m';
+
+interface ScannerFiltersStorage {
+  quoteCoin: string;
+  timeframe: ScannerTimeframe;
+  secondaryTimeframe: ScannerTimeframe;
+  limit: number;
+  minTurnover: number | null;
+}
+
+interface ScannerSortingStorage {
+  sortColumn: string | null;
+  sortDirection: 'asc' | 'desc' | null;
+}
+
+const SCANNER_FILTERS_STORAGE_KEY = 'tbot.scanner.filters.v1';
+const SCANNER_SORTING_STORAGE_KEY = 'tbot.scanner.sorting.v1';
 
 function formatMarketPrice(value: number | null | undefined): string {
   if (value === null || value === undefined || !Number.isFinite(value) || value <= 0) {
@@ -157,6 +174,13 @@ export class ScannerComponent {
   expandedSections: Record<string, Record<string, boolean>> = {};
 
   constructor() {
+    this.restoreFiltersFromStorage();
+    this.restoreSortingFromStorage();
+
+    this.form.valueChanges.subscribe(() => {
+      this.saveFiltersToStorage();
+    });
+
     this.scannerService.getQuoteCoins().pipe(
       map((quoteCoins) => (quoteCoins.length > 0 ? quoteCoins : ['USDC'])),
       catchError((error) => {
@@ -168,6 +192,8 @@ export class ScannerComponent {
       if (!quoteCoins.includes(this.form.controls.quoteCoin.value)) {
         this.form.controls.quoteCoin.setValue(quoteCoins[0] ?? 'USDC');
       }
+
+      this.saveFiltersToStorage();
 
       this.cdr.markForCheck();
     });
@@ -525,7 +551,127 @@ export class ScannerComponent {
       this.applySort();
     }
 
+    this.saveSortingToStorage();
+
     this.cdr.markForCheck();
+  }
+
+  private restoreFiltersFromStorage(): void {
+    const saved = this.readFromStorage<ScannerFiltersStorage>(SCANNER_FILTERS_STORAGE_KEY);
+    if (!saved || typeof saved !== 'object') {
+      return;
+    }
+
+    const quoteCoin = typeof saved.quoteCoin === 'string' && saved.quoteCoin.trim().length > 0
+      ? saved.quoteCoin.trim().toUpperCase()
+      : 'USDC';
+
+    const timeframe = this.normalizeTimeframe(saved.timeframe, '1h');
+    const secondaryTimeframe = this.normalizeTimeframe(saved.secondaryTimeframe, '15m');
+    const limit = this.normalizeLimit(saved.limit);
+    const minTurnover = this.normalizeMinTurnover(saved.minTurnover);
+
+    this.form.patchValue(
+      {
+        quoteCoin,
+        timeframe,
+        secondaryTimeframe,
+        limit,
+        minTurnover,
+      },
+      { emitEvent: false },
+    );
+  }
+
+  private restoreSortingFromStorage(): void {
+    const saved = this.readFromStorage<ScannerSortingStorage>(SCANNER_SORTING_STORAGE_KEY);
+    if (!saved || typeof saved !== 'object') {
+      return;
+    }
+
+    const sortColumn = typeof saved.sortColumn === 'string' && saved.sortColumn.length > 0
+      ? saved.sortColumn
+      : null;
+
+    const sortDirection = saved.sortDirection === 'asc' || saved.sortDirection === 'desc' || saved.sortDirection === null
+      ? saved.sortDirection
+      : null;
+
+    this.sortColumn = sortColumn;
+    this.sortDirection = sortDirection;
+  }
+
+  private saveFiltersToStorage(): void {
+    const raw = this.form.getRawValue();
+    this.writeToStorage<ScannerFiltersStorage>(SCANNER_FILTERS_STORAGE_KEY, {
+      quoteCoin: raw.quoteCoin,
+      timeframe: raw.timeframe,
+      secondaryTimeframe: raw.secondaryTimeframe,
+      limit: this.normalizeLimit(raw.limit),
+      minTurnover: this.normalizeMinTurnover(raw.minTurnover),
+    });
+  }
+
+  private saveSortingToStorage(): void {
+    this.writeToStorage<ScannerSortingStorage>(SCANNER_SORTING_STORAGE_KEY, {
+      sortColumn: this.sortColumn,
+      sortDirection: this.sortDirection,
+    });
+  }
+
+  private normalizeTimeframe(value: unknown, fallback: ScannerTimeframe): ScannerTimeframe {
+    return value === '1h' || value === '15m' ? value : fallback;
+  }
+
+  private normalizeLimit(value: unknown): number {
+    const parsed = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(parsed)) {
+      return 100;
+    }
+
+    return Math.max(1, Math.min(500, Math.round(parsed)));
+  }
+
+  private normalizeMinTurnover(value: unknown): number | null {
+    if (value === null || value === undefined || value === '') {
+      return null;
+    }
+
+    const parsed = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(parsed)) {
+      return 25000;
+    }
+
+    return Math.max(0, parsed);
+  }
+
+  private readFromStorage<T>(key: string): T | null {
+    if (typeof localStorage === 'undefined') {
+      return null;
+    }
+
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) {
+        return null;
+      }
+
+      return JSON.parse(raw) as T;
+    } catch {
+      return null;
+    }
+  }
+
+  private writeToStorage<T>(key: string, value: T): void {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+      // ignore storage write failures
+    }
   }
 
   statusClass(status: ScannerCandidate['status']): string {

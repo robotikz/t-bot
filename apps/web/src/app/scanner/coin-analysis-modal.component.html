@@ -15,14 +15,24 @@
     </header>
 
     <div class="analysis-modal-body">
-      <details class="collapsible-section modal-analysis" open>
+      <details
+        #analysisDetails
+        class="collapsible-section modal-analysis"
+        [open]="isAnalysisDataExpanded"
+        (toggle)="onAnalysisDataToggle(analysisDetails)"
+      >
         <summary>Analysis data</summary>
         <div class="collapsible-content">
           <pre>{{ analysisText }}</pre>
         </div>
       </details>
 
-      <details class="collapsible-section modal-charts">
+      <details
+        #chartsDetails
+        class="collapsible-section modal-charts"
+        [open]="isChartsExpanded"
+        (toggle)="onChartsToggle(chartsDetails)"
+      >
         <summary>Charts</summary>
         <div class="collapsible-content charts-content">
           <div class="chart-card">
