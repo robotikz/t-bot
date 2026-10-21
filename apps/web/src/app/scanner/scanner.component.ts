@@ -268,7 +268,6 @@ export class ScannerComponent {
         marketSummary: true,
         h1: true,
         m15: true,
-        reasons: true,
         execution: true,
       };
     }
@@ -404,7 +403,6 @@ export class ScannerComponent {
         marketSummary: true,
         h1: true,
         m15: true,
-        reasons: true,
         execution: true,
       };
     }

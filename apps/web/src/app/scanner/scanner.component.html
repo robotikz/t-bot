@@ -387,27 +387,6 @@
           }
         </div>
 
-        <div class="panel">
-          <div class="panel-header" (click)="toggleSection(candidate.symbol,'reasons')">Reasons <span class="panel-indicator">{{ isSectionExpanded(candidate.symbol,'reasons') ? '−' : '+' }}</span></div>
-          @if (isSectionExpanded(candidate.symbol,'reasons')) {
-            <div class="panel-body">
-              <ul>
-                @for (reason of candidate.reasons; track $index) {
-                  <li>{{ reason }}</li>
-                }
-              </ul>
-
-              @if (candidate.rejectionReasons.length > 0) {
-                <p class="rejections-label">Rejection reasons:</p>
-                <ul>
-                  @for (reason of candidate.rejectionReasons; track $index) {
-                    <li>{{ reason }}</li>
-                  }
-                </ul>
-              }
-            </div>
-          }
-        </div>
       </div>
     </section>
   }
