@@ -51,6 +51,38 @@
           </div>
         </div>
       </details>
+
+      <details
+        #recommendedGridDetails
+        class="collapsible-section"
+        [open]="isRecommendedGridExpanded"
+        (toggle)="onRecommendedGridToggle(recommendedGridDetails)"
+      >
+        <summary>Recommended Grid Setup</summary>
+        <div class="collapsible-content">
+          <ng-container *ngIf="usdcExecution?.recommendation as recommendation; else noRecommendationTemplate">
+            <p>Investment: {{ recommendation.investmentUsdc }} USDC</p>
+            <p>
+              Recommended Entry:
+              {{ formatMarketPrice(recommendation.entryLow) }} - {{ formatMarketPrice(recommendation.entryHigh) }}
+            </p>
+            <p>
+              Recommended Grid Range:
+              {{ formatMarketPrice(recommendation.gridLow) }} - {{ formatMarketPrice(recommendation.gridHigh) }}
+            </p>
+            <p>Grid Count: {{ recommendation.gridCount }}</p>
+            <p>Stop Loss: {{ formatMarketPrice(recommendation.stopLoss) }}</p>
+            <p>Take Profit: {{ formatMarketPrice(recommendation.takeProfit) }}</p>
+            <p>Trailing Up: {{ recommendation.trailingUp ? 'ON' : 'OFF' }}</p>
+            <p>Trailing Stop: {{ recommendation.trailingStopPercent | number: '1.1-2' }}%</p>
+            <p>Risk: {{ recommendation.risk }}</p>
+            <p>Execution Decision: {{ recommendation.executionDecision }}</p>
+          </ng-container>
+          <ng-template #noRecommendationTemplate>
+            <p>Recommended grid setup is not available for this symbol.</p>
+          </ng-template>
+        </div>
+      </details>
     </div>
   </div>
 </div>

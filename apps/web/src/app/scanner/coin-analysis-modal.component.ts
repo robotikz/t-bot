@@ -6,6 +6,7 @@ import type { CandlestickSeries, CandlestickData, CrosshairMode } from 'lightwei
 interface ModalSectionsStorage {
   analysisDataExpanded: boolean;
   chartsExpanded: boolean;
+  recommendedGridExpanded: boolean;
 }
 
 const MODAL_SECTIONS_STORAGE_KEY = 'tbot.scanner.modal.sections.v1';
@@ -157,6 +158,7 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
   status15mMessage = 'Loading chart...';
   isAnalysisDataExpanded = true;
   isChartsExpanded = false;
+  isRecommendedGridExpanded = false;
 
   // symbol|timeframe keys for which a history load already succeeded this session
   private static readonly loadedHistory = new Set<string>();
@@ -262,6 +264,11 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
 
   onChartsToggle(detailsElement: HTMLDetailsElement): void {
     this.isChartsExpanded = detailsElement.open;
+    this.saveSectionState();
+  }
+
+  onRecommendedGridToggle(detailsElement: HTMLDetailsElement): void {
+    this.isRecommendedGridExpanded = detailsElement.open;
     this.saveSectionState();
   }
 
@@ -524,12 +531,14 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
 
     this.isAnalysisDataExpanded = typeof saved.analysisDataExpanded === 'boolean' ? saved.analysisDataExpanded : true;
     this.isChartsExpanded = typeof saved.chartsExpanded === 'boolean' ? saved.chartsExpanded : false;
+    this.isRecommendedGridExpanded = typeof saved.recommendedGridExpanded === 'boolean' ? saved.recommendedGridExpanded : false;
   }
 
   private saveSectionState(): void {
     this.writeToStorage<ModalSectionsStorage>(MODAL_SECTIONS_STORAGE_KEY, {
       analysisDataExpanded: this.isAnalysisDataExpanded,
       chartsExpanded: this.isChartsExpanded,
+      recommendedGridExpanded: this.isRecommendedGridExpanded,
     });
   }
 
