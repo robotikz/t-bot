@@ -99,25 +99,8 @@
                 <span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>
               }
             </th>
-            <th (click)="sortBy('change24hPercent')" class="sortable">24h %
-              @if (sortColumn === 'change24hPercent') {
-                <span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>
-              }
-            </th>
-            <th (click)="sortBy('turnover24h')" class="sortable">24h Turnover
-              @if (sortColumn === 'turnover24h') {
-                <span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>
-              }
-            </th>
-            <th (click)="sortBy('range1h')" class="sortable">1H Range
-              @if (sortColumn === 'range1h') {
-                <span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>
-              }
-            </th>
-            <th>1H Trend</th>
-            <th>15M Trend</th>
-            <th (click)="sortBy('position')" class="sortable">Position
-              @if (sortColumn === 'position') {
+            <th (click)="sortBy('entry')" class="sortable">Entry
+              @if (sortColumn === 'entry') {
                 <span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>
               }
             </th>
@@ -131,8 +114,25 @@
                 <span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>
               }
             </th>
-            <th (click)="sortBy('entry')" class="sortable">Entry
-              @if (sortColumn === 'entry') {
+            <th (click)="sortBy('turnover24h')" class="sortable">24h Turnover
+              @if (sortColumn === 'turnover24h') {
+                <span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>
+              }
+            </th>
+            <th (click)="sortBy('change24hPercent')" class="sortable">24h %
+              @if (sortColumn === 'change24hPercent') {
+                <span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>
+              }
+            </th>
+            <th>1H Trend</th>
+            <th>15M Trend</th>
+            <th (click)="sortBy('position')" class="sortable">Position
+              @if (sortColumn === 'position') {
+                <span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>
+              }
+            </th>
+            <th (click)="sortBy('range1h')" class="sortable">1H Range
+              @if (sortColumn === 'range1h') {
                 <span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>
               }
             </th>
@@ -149,17 +149,17 @@
               <td><span class="status" [ngClass]="statusClass(candidate.status)">{{ candidate.status }}</span></td>
               <td>{{ candidate.symbol }}</td>
               <td>{{ formatMarketPrice(candidate.market.lastPrice) }}</td>
+              <td><span class="status" [ngClass]="executionStatusClass(candidateEntryTiming(candidate))">{{ candidateEntryTiming(candidate) }}</span></td>
+              <td>{{ candidate.score | number: '1.2-2' }}</td>
+              <td>{{ candidateEntryScore(candidate) | number: '1.0-0' }}</td>
+              <td>{{ candidate.market.turnover24h | number: '1.0-0' }}</td>
               <td [class.positive]="candidate.market.change24hPercent >= 0" [class.negative]="candidate.market.change24hPercent < 0">
                 {{ candidate.market.change24hPercent >= 0 ? '+' : '' }}{{ candidate.market.change24hPercent | number: '1.1-2' }}%
               </td>
-              <td>{{ candidate.market.turnover24h | number: '1.0-0' }}</td>
-              <td>{{ candidate.analysis1h?.rangePercent | number: '1.1-2' }}%</td>
               <td>{{ candidate.analysis1h?.trendDirection ?? 'N/A' }}</td>
               <td>{{ candidate.analysis15m?.trendDirection ?? 'N/A' }}</td>
               <td>{{ candidate.analysis1h?.positionInRangePercent | number: '1.0-0' }}%</td>
-              <td>{{ candidate.score | number: '1.2-2' }}</td>
-              <td>{{ candidateEntryScore(candidate) | number: '1.0-0' }}</td>
-              <td><span class="status" [ngClass]="executionStatusClass(candidateEntryTiming(candidate))">{{ candidateEntryTiming(candidate) }}</span></td>
+              <td>{{ candidate.analysis1h?.rangePercent | number: '1.1-2' }}%</td>
             </tr>
           }
         </tbody>

@@ -163,7 +163,7 @@ export class ScannerComponent {
   private spotInstrumentsRequest$: Observable<MarketInstrument[]> | null = null;
   private executionMarketResolver: ExecutionMarketResolver | null = null;
   // table sorting state
-  sortColumn: string | null = 'score';
+  sortColumn: string | null = 'entryScore';
   sortDirection: 'asc' | 'desc' | null = 'desc';
   // modal state
   isAnalysisModalOpen = false;
@@ -233,7 +233,7 @@ export class ScannerComponent {
       next: (result) => {
         const candidates = Array.isArray(result?.candidates) ? [...result.candidates] : [];
 
-        // preserve original scanned order and apply initial default sort (score desc)
+        // preserve original scanned order and apply initial default sort (entryScore desc)
         this.scannedCandidates = candidates.slice();
         this.applySort();
 
@@ -490,6 +490,10 @@ export class ScannerComponent {
         case 'range1h':
           av = left.analysis1h?.rangePercent ?? Number.NEGATIVE_INFINITY;
           bv = right.analysis1h?.rangePercent ?? Number.NEGATIVE_INFINITY;
+          break;
+        case 'position':
+          av = left.analysis1h?.positionInRangePercent ?? Number.NEGATIVE_INFINITY;
+          bv = right.analysis1h?.positionInRangePercent ?? Number.NEGATIVE_INFINITY;
           break;
         case 'status':
           av = (left.status ?? '') as string;
