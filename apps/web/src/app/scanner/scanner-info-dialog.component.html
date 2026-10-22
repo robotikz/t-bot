@@ -1,0 +1,37 @@
+<div class="analysis-modal-backdrop" role="dialog" aria-modal="true" aria-label="How to Read the Market Scanner" (click)="requestClose()">
+  <section class="analysis-modal" (click)="stopEvent($event)">
+    <header class="analysis-modal-header">
+      <h3>How to Read the Market Scanner</h3>
+      <button type="button" class="modal-close" aria-label="Close guide" (click)="requestClose()">Close</button>
+    </header>
+    <div class="analysis-modal-body">
+      <h4>1. Evaluate the market</h4>
+      <ul>
+        <li>Check <strong>Status</strong>: CANDIDATE means no rejection reasons; WATCH means soft rejection reasons with score ≥ 60; REJECTED means hard rejection reasons or low score with rejections.</li>
+        <li>Use <strong>Market Score</strong> to compare overall suitability between pairs.</li>
+        <li>Check <strong>24h Turnover</strong> to evaluate activity and liquidity.</li>
+      </ul>
+      <h4>2. Evaluate entry timing</h4>
+      <ul>
+        <li><strong>Entry Score</strong> reflects the scanner entry-timing score (0–100).</li>
+        <li><strong>Entry</strong> can be READY, WAIT_PULLBACK, WAIT_BREAKOUT_RETEST, WAIT_CONFIRMATION, or NO_ENTRY.</li>
+        <li>A high <strong>Market Score</strong> does not automatically mean immediate entry.</li>
+        <li>If the recommendation says to wait, do not treat score alone as a buy signal.</li>
+      </ul>
+      <h4>3. Confirm market conditions</h4>
+      <ul>
+        <li><strong>1H Trend</strong> shows the primary trend direction.</li>
+        <li><strong>15M Trend</strong> adds short-term trend confirmation.</li>
+        <li><strong>Position</strong> shows where price sits in its calculated range (0% = range low, 100% = range high).</li>
+        <li><strong>1H Range</strong> shows the 1-hour range size as a percent move.</li>
+      </ul>
+      <h4>4. Important risk considerations</h4>
+      <ul>
+        <li>The scanner finds potential candidates; it does not guarantee profits.</li>
+        <li>High scores do not remove downside risk.</li>
+        <li>Support can break and breakouts can fail.</li>
+        <li>Before launching a Spot Grid Bot, review range, liquidity, fees, and out-of-range risk.</li>
+      </ul>
+    </div>
+  </section>
+</div>

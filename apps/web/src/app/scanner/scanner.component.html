@@ -80,71 +80,105 @@
 
   @if (candidates.length > 0) {
     <section class="table-section">
+      <div class="table-toolbar">
+        <h2>Scanner Results</h2>
+        <button
+          type="button"
+          class="info-button"
+          aria-label="Open market scanner guide"
+          [attr.aria-expanded]="isScannerInfoOpen"
+          (click)="toggleScannerInfo($event)"
+        >
+          ⓘ Info
+        </button>
+      </div>
+
       <table>
         <thead>
           <tr>
-            <th>#</th>
-            <th (click)="sortBy('status')" class="sortable">Status
-              @if (sortColumn === 'status') {
-                <span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>
-              }
+            <th>
+              <div class="th-content">
+                <span>#</span>
+                <app-scanner-header-help label="# column" [helpText]="columnHelp['index']"></app-scanner-header-help>
+              </div>
             </th>
-            <th (click)="sortBy('symbol')" class="sortable">Symbol
-              @if (sortColumn === 'symbol') {
-                <span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>
-              }
+            <th (click)="sortBy('status')" class="sortable">
+              <div class="th-content">
+                <span>Status @if (sortColumn === 'status') {<span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>}</span>
+                <app-scanner-header-help label="Status column" [helpText]="columnHelp['status']"></app-scanner-header-help>
+              </div>
             </th>
-            <th (click)="sortBy('price')" class="sortable">Price
-              @if (sortColumn === 'price') {
-                <span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>
-              }
+            <th (click)="sortBy('symbol')" class="sortable">
+              <div class="th-content">
+                <span>Symbol @if (sortColumn === 'symbol') {<span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>}</span>
+                <app-scanner-header-help label="Symbol column" [helpText]="columnHelp['symbol']"></app-scanner-header-help>
+              </div>
             </th>
-            <th (click)="sortBy('entry')" class="sortable">Entry
-              @if (sortColumn === 'entry') {
-                <span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>
-              }
+            <th (click)="sortBy('price')" class="sortable">
+              <div class="th-content">
+                <span>Price @if (sortColumn === 'price') {<span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>}</span>
+                <app-scanner-header-help label="Price column" [helpText]="columnHelp['price']"></app-scanner-header-help>
+              </div>
             </th>
-            <th (click)="sortBy('score')" class="sortable">Market Score
-              @if (sortColumn === 'score') {
-                <span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>
-              }
+            <th (click)="sortBy('entry')" class="sortable">
+              <div class="th-content">
+                <span>Entry @if (sortColumn === 'entry') {<span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>}</span>
+                <app-scanner-header-help label="Entry column" [helpText]="columnHelp['entry']"></app-scanner-header-help>
+              </div>
             </th>
-            <th (click)="sortBy('entryScore')" class="sortable">Entry Score
-              @if (sortColumn === 'entryScore') {
-                <span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>
-              }
+            <th (click)="sortBy('score')" class="sortable">
+              <div class="th-content">
+                <span>Market Score @if (sortColumn === 'score') {<span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>}</span>
+                <app-scanner-header-help label="Market Score column" [helpText]="columnHelp['score']"></app-scanner-header-help>
+              </div>
             </th>
-            <th (click)="sortBy('turnover24h')" class="sortable">24h Turnover
-              @if (sortColumn === 'turnover24h') {
-                <span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>
-              }
+            <th (click)="sortBy('entryScore')" class="sortable">
+              <div class="th-content">
+                <span>Entry Score @if (sortColumn === 'entryScore') {<span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>}</span>
+                <app-scanner-header-help label="Entry Score column" [helpText]="columnHelp['entryScore']"></app-scanner-header-help>
+              </div>
             </th>
-            <th (click)="sortBy('change24hPercent')" class="sortable">24h %
-              @if (sortColumn === 'change24hPercent') {
-                <span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>
-              }
+            <th (click)="sortBy('turnover24h')" class="sortable">
+              <div class="th-content">
+                <span>24h Turnover @if (sortColumn === 'turnover24h') {<span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>}</span>
+                <app-scanner-header-help label="24h Turnover column" [helpText]="columnHelp['turnover24h']"></app-scanner-header-help>
+              </div>
             </th>
-            <th>1H Trend</th>
-            <th>15M Trend</th>
-            <th (click)="sortBy('position')" class="sortable">Position
-              @if (sortColumn === 'position') {
-                <span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>
-              }
+            <th (click)="sortBy('change24hPercent')" class="sortable">
+              <div class="th-content">
+                <span>24h % @if (sortColumn === 'change24hPercent') {<span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>}</span>
+                <app-scanner-header-help label="24h percent column" [helpText]="columnHelp['change24hPercent']"></app-scanner-header-help>
+              </div>
             </th>
-            <th (click)="sortBy('range1h')" class="sortable">1H Range
-              @if (sortColumn === 'range1h') {
-                <span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>
-              }
+            <th>
+              <div class="th-content">
+                <span>1H Trend</span>
+                <app-scanner-header-help label="1H Trend column" [helpText]="columnHelp['trend1h']"></app-scanner-header-help>
+              </div>
+            </th>
+            <th>
+              <div class="th-content">
+                <span>15M Trend</span>
+                <app-scanner-header-help label="15M Trend column" [helpText]="columnHelp['trend15m']"></app-scanner-header-help>
+              </div>
+            </th>
+            <th (click)="sortBy('position')" class="sortable">
+              <div class="th-content">
+                <span>Position @if (sortColumn === 'position') {<span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>}</span>
+                <app-scanner-header-help label="Position column" [helpText]="columnHelp['position']"></app-scanner-header-help>
+              </div>
+            </th>
+            <th (click)="sortBy('range1h')" class="sortable">
+              <div class="th-content">
+                <span>1H Range @if (sortColumn === 'range1h') {<span class="sort-indicator">{{ sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : '' }}</span>}</span>
+                <app-scanner-header-help label="1H Range column" [helpText]="columnHelp['range1h']"></app-scanner-header-help>
+              </div>
             </th>
           </tr>
         </thead>
         <tbody>
           @for (candidate of candidates; track candidate.symbol; let index = $index) {
-            <tr
-              (click)="onRowClick(candidate, $event)"
-              [class.selected]="isSelected(candidate)"
-              [class.active]="selectedCandidate?.symbol === candidate.symbol"
-            >
+            <tr (click)="onRowClick(candidate, $event)" [class.selected]="isSelected(candidate)" [class.active]="selectedCandidate?.symbol === candidate.symbol">
               <td>{{ index + 1 }}</td>
               <td><span class="status" [ngClass]="statusClass(candidate.status)">{{ candidate.status }}</span></td>
               <td>{{ candidate.symbol }}</td>
@@ -153,9 +187,7 @@
               <td>{{ candidate.score | number: '1.2-2' }}</td>
               <td>{{ candidateEntryScore(candidate) | number: '1.0-0' }}</td>
               <td>{{ candidate.market.turnover24h | number: '1.0-0' }}</td>
-              <td [class.positive]="candidate.market.change24hPercent >= 0" [class.negative]="candidate.market.change24hPercent < 0">
-                {{ candidate.market.change24hPercent >= 0 ? '+' : '' }}{{ candidate.market.change24hPercent | number: '1.1-2' }}%
-              </td>
+              <td [class.positive]="candidate.market.change24hPercent >= 0" [class.negative]="candidate.market.change24hPercent < 0">{{ candidate.market.change24hPercent >= 0 ? '+' : '' }}{{ candidate.market.change24hPercent | number: '1.1-2' }}%</td>
               <td>{{ candidate.analysis1h?.trendDirection ?? 'N/A' }}</td>
               <td>{{ candidate.analysis15m?.trendDirection ?? 'N/A' }}</td>
               <td>{{ candidate.analysis1h?.positionInRangePercent | number: '1.0-0' }}%</td>
@@ -165,6 +197,9 @@
         </tbody>
       </table>
     </section>
+    @if (isScannerInfoOpen) {
+      <app-scanner-info-dialog (close)="closeScannerInfo()"></app-scanner-info-dialog>
+    }
   }
 
   <!-- Analysis modal removed temporarily to fix template parsing; modal content available in details section below. -->

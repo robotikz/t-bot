@@ -1,0 +1,19 @@
+<button
+  type="button"
+  class="header-help"
+  [attr.aria-label]="'Show help for ' + label"
+  [attr.aria-describedby]="isOpen ? tooltipId : null"
+  [attr.aria-expanded]="isOpen"
+  [attr.aria-controls]="tooltipId"
+  (mouseenter)="open($event)"
+  (focus)="open($event)"
+  (click)="toggle($event)"
+>
+  ?
+</button>
+
+@if (isOpen) {
+  <div class="column-tooltip" role="tooltip" [id]="tooltipId" (click)="close($event)">
+    {{ helpText }}
+  </div>
+}

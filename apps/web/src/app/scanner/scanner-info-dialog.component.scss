@@ -1,0 +1,47 @@
+.analysis-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(2, 6, 23, 0.6);
+  z-index: 80;
+  padding: 1rem;
+}
+
+.analysis-modal {
+  width: 100%;
+  max-width: 980px;
+  max-height: 90vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 0.6rem;
+  padding: 1rem;
+  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.4);
+}
+
+.analysis-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.8rem;
+}
+
+.analysis-modal-body {
+  display: grid;
+  gap: 1rem;
+}
+
+.modal-close {
+  border: 0;
+  background: transparent;
+  color: #0f172a;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+ul {
+  margin-bottom: 0;
+  padding-left: 1.25rem;
+}

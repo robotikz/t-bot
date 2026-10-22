@@ -1,6 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, HostListener, inject } from '@angular/core';
 import { CoinAnalysisModalComponent } from './coin-analysis-modal.component';
+import { ScannerHeaderHelpComponent } from './scanner-header-help.component';
+import { ScannerInfoDialogComponent } from './scanner-info-dialog.component';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { catchError, forkJoin, map, of, Observable, shareReplay, switchMap, tap } from 'rxjs';
 import { createExecutionMarketResolver, ExecutionMarketResolution, ExecutionMarketResolver } from './execution-market-resolver';
@@ -129,7 +131,13 @@ interface UsdcExecutionSection {
 @Component({
   selector: 'app-scanner',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, CoinAnalysisModalComponent],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    CoinAnalysisModalComponent,
+    ScannerHeaderHelpComponent,
+    ScannerInfoDialogComponent,
+  ],
   templateUrl: './scanner.component.html',
   styleUrl: './scanner.component.scss',
 })
@@ -163,7 +171,7 @@ export class ScannerComponent {
   private spotInstrumentsRequest$: Observable<MarketInstrument[]> | null = null;
   private executionMarketResolver: ExecutionMarketResolver | null = null;
   // table sorting state
-  sortColumn: string | null = 'entryScore';
+  sortColumn: string | null = 'score';
   sortDirection: 'asc' | 'desc' | null = 'desc';
   // modal state
   isAnalysisModalOpen = false;
@@ -172,6 +180,29 @@ export class ScannerComponent {
   private toastSeq = 0;
   // expandable sections per symbol
   expandedSections: Record<string, Record<string, boolean>> = {};
+  // table UX
+  isScannerInfoOpen = false;
+  readonly columnHelp: Record<string, string> = {
+    index: 'Row number in the current table order.',
+    status:
+      'CANDIDATE: no rejection reasons. WATCH: soft rejection reasons with score ≥ 60. REJECTED: hard rejection reason or score < 60 with rejections.',
+    symbol: 'Trading pair analyzed by the scanner, for example SUIUSDC.',
+    price: 'Latest market price from the ticker feed.',
+    entry:
+      'Current entry recommendation from scanner logic: READY, WAIT_PULLBACK, WAIT_BREAKOUT_RETEST, WAIT_CONFIRMATION, or NO_ENTRY.',
+    score:
+      'Overall market suitability score from scanner analysis (primary/secondary timeframe weighted score). Not a profit probability.',
+    entryScore:
+      'Entry timing score from scanner entry logic (0–100). Higher means conditions are more favorable now.',
+    turnover24h:
+      '24h trading turnover from ticker data (quote-currency value, e.g. USDC on USDC scans).',
+    change24hPercent: 'Percentage price change over the last 24 hours.',
+    trend1h: 'Detected trend on the 1-hour timeframe: UP, DOWN, or SIDEWAYS.',
+    trend15m: 'Detected trend on the 15-minute timeframe: UP, DOWN, or SIDEWAYS.',
+    position:
+      'Price position in the calculated range: ((price - rangeLow) / (rangeHigh - rangeLow)) × 100, clamped to 0–100%.',
+    range1h: '1H range size in percent: ((rangeHigh - rangeLow) / rangeLow) × 100.',
+  };
 
   constructor() {
     this.restoreFiltersFromStorage();
@@ -233,7 +264,7 @@ export class ScannerComponent {
       next: (result) => {
         const candidates = Array.isArray(result?.candidates) ? [...result.candidates] : [];
 
-        // preserve original scanned order and apply initial default sort (entryScore desc)
+        // preserve original scanned order and apply initial default sort (score desc)
         this.scannedCandidates = candidates.slice();
         this.applySort();
 
@@ -436,7 +467,26 @@ export class ScannerComponent {
   handleKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape' && this.isAnalysisModalOpen) {
       this.closeAnalysisModal();
+      return;
     }
+
+    if (event.key === 'Escape' && this.isScannerInfoOpen) {
+      this.closeScannerInfo();
+      return;
+    }
+
+  }
+
+  toggleScannerInfo(event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isScannerInfoOpen = !this.isScannerInfoOpen;
+    this.cdr.markForCheck();
+  }
+
+  closeScannerInfo(): void {
+    this.isScannerInfoOpen = false;
+    this.cdr.markForCheck();
   }
 
   toggleSection(symbol: string, section: string): void {
