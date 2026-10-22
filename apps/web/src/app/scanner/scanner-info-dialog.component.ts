@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, ElementRef, EventEmitter, HostListener, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
 
 @Component({
   selector: 'app-scanner-info-dialog',
@@ -8,6 +8,17 @@ import { Component, EventEmitter, Output } from '@angular/core';
 })
 export class ScannerInfoDialogComponent {
   @Output() close = new EventEmitter<void>();
+  @ViewChild('dialogPanel') dialogPanel?: ElementRef<HTMLElement>;
+  private previousFocusedElement: HTMLElement | null = null;
+
+  ngOnInit(): void {
+    this.previousFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setTimeout(() => this.dialogPanel?.nativeElement.focus(), 0);
+  }
+
+  ngOnDestroy(): void {
+    this.previousFocusedElement?.focus();
+  }
 
   requestClose(): void {
     this.close.emit();
@@ -15,5 +26,12 @@ export class ScannerInfoDialogComponent {
 
   stopEvent(event: Event): void {
     event.stopPropagation();
+  }
+
+  @HostListener('window:keydown', ['$event'])
+  onWindowKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      this.requestClose();
+    }
   }
 }
