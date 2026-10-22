@@ -2,6 +2,11 @@ import { CommonModule } from '@angular/common';
 import { AfterViewInit, ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, inject } from '@angular/core';
 import { ScannerCandidate, ScannerService } from './scanner.service';
 import type { CandlestickSeries, CandlestickData, CrosshairMode } from 'lightweight-charts';
+import {
+  formatPrecisionPrice,
+  getPricePrecisionConfig,
+  PricePrecisionConfig,
+} from './price-formatter.utils';
 
 interface ModalSectionsStorage {
   analysisDataExpanded: boolean;
@@ -14,20 +19,11 @@ const MODAL_SECTIONS_STORAGE_KEY = 'tbot.scanner.modal.sections.v1';
 const UTC_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function formatMarketPrice(value: number | null | undefined): string {
-  if (value === null || value === undefined || !Number.isFinite(value) || value <= 0) {
-    return 'N/A';
-  }
-
-  const abs = Math.abs(value);
-  const fractionDigits = abs >= 1000 ? 2 : abs >= 1 ? 4 : abs >= 0.01 ? 4 : abs >= 0.0001 ? 6 : 8;
-  return new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: fractionDigits,
-    maximumFractionDigits: fractionDigits,
-  }).format(value);
+  return formatPrecisionPrice(value);
 }
 
 export function formatAdaptiveMarketPrice(value: number | null | undefined): string {
-  return formatMarketPrice(value);
+  return formatPrecisionPrice(value);
 }
 
 export function formatAnalysisRange(low: number | null | undefined, high: number | null | undefined): string {
@@ -35,7 +31,7 @@ export function formatAnalysisRange(low: number | null | undefined, high: number
     return 'N/A';
   }
 
-  return `${formatMarketPrice(low)} - ${formatMarketPrice(high)}`;
+  return `${formatPrecisionPrice(low)} - ${formatPrecisionPrice(high)}`;
 }
 
 export function formatChartTitle(symbol: string | null | undefined, timeframeLabel: string): string {
@@ -172,6 +168,8 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
   series15m: any = null;
   priceLines1h: any[] = [];
   priceLines15m: any[] = [];
+  private resizeObserver: ResizeObserver | null = null;
+  private resizeWindowHandler: (() => void) | null = null;
 
   isChartsLoading = false;
   status1h: 'loading' | 'ready' | 'empty' | 'error' = 'loading';
@@ -287,11 +285,21 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
   onChartsToggle(detailsElement: HTMLDetailsElement): void {
     this.isChartsExpanded = detailsElement.open;
     this.saveSectionState();
+    if (this.isChartsExpanded) {
+      setTimeout(() => {
+        this.resizeCharts();
+      }, 50);
+    }
   }
 
   onRecommendedGridToggle(detailsElement: HTMLDetailsElement): void {
     this.isRecommendedGridExpanded = detailsElement.open;
     this.saveSectionState();
+    if (this.isChartsExpanded) {
+      setTimeout(() => {
+        this.resizeCharts();
+      }, 50);
+    }
   }
 
   private async initOrUpdateCharts(): Promise<void> {
@@ -321,13 +329,38 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
         throw new Error('lightweight-charts import failed');
       }
 
+      const precisionConfig = getPricePrecisionConfig(
+        this.candidate?.market?.lastPrice,
+        (this.candidate as any)?.tickSize ?? (this.usdcExecution as any)?.tickSize,
+      );
+
       const sharedChartOptions = {
         layout: { background: { color: '#fff' }, textColor: '#333' },
         crosshair: { mode: runtimeCrosshairMode?.Normal ?? 0 },
+        rightPriceScale: {
+          visible: true,
+          autoScale: true,
+          entireTextOnly: false,
+          scaleMargins: {
+            top: 0.1,
+            bottom: 0.1,
+          },
+        },
         timeScale: {
           timeVisible: true,
           secondsVisible: false,
           tickMarkFormatter: formatChartTimeAxisLabel,
+        },
+      };
+
+      const seriesOptions = {
+        upColor: '#16a34a',
+        downColor: '#dc2626',
+        borderVisible: false,
+        priceFormat: {
+          type: 'custom',
+          formatter: (price: number) => formatPrecisionPrice(price, precisionConfig),
+          minMove: precisionConfig.minMove,
         },
       };
 
@@ -336,14 +369,10 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
       // Prefer v5 API: addSeries(CandlestickSeries, options)
       const runtimeCandlestickSeries = lc.CandlestickSeries ?? lc.default?.CandlestickSeries;
       if (runtimeCandlestickSeries) {
-        this.series1h = this.chart1h.addSeries(runtimeCandlestickSeries, {
-          upColor: '#16a34a',
-          downColor: '#dc2626',
-          borderVisible: false,
-        });
+        this.series1h = this.chart1h.addSeries(runtimeCandlestickSeries, seriesOptions);
       } else if (typeof (this.chart1h as any).addCandlestickSeries === 'function') {
         // fallback for v4 API
-        this.series1h = (this.chart1h as any).addCandlestickSeries();
+        this.series1h = (this.chart1h as any).addCandlestickSeries(seriesOptions);
       } else {
         console.error('lightweight-charts: no candlestick series API available for 1h', { chart: this.chart1h, lc });
         throw new Error('lightweight-charts candlestick API missing');
@@ -351,17 +380,15 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
 
       this.chart15m = createChart(host15, sharedChartOptions);
       if (runtimeCandlestickSeries) {
-        this.series15m = this.chart15m.addSeries(runtimeCandlestickSeries, {
-          upColor: '#16a34a',
-          downColor: '#dc2626',
-          borderVisible: false,
-        });
+        this.series15m = this.chart15m.addSeries(runtimeCandlestickSeries, seriesOptions);
       } else if (typeof (this.chart15m as any).addCandlestickSeries === 'function') {
-        this.series15m = (this.chart15m as any).addCandlestickSeries();
+        this.series15m = (this.chart15m as any).addCandlestickSeries(seriesOptions);
       } else {
         console.error('lightweight-charts: no candlestick series API available for 15m', { chart: this.chart15m, lc });
         throw new Error('lightweight-charts candlestick API missing');
       }
+
+      this.setupChartResizeObservers(host1, host15);
     } catch (error) {
       // if chart lib missing, notify and bail
       console.error('Chart init error', error);
@@ -488,7 +515,61 @@ export class CoinAnalysisModalComponent implements OnChanges, AfterViewInit, OnD
     this.priceLines15m = [];
   }
 
+  private setupChartResizeObservers(host1: HTMLElement, host15: HTMLElement): void {
+    this.teardownChartResizeObservers();
+
+    if (typeof ResizeObserver !== 'undefined') {
+      this.resizeObserver = new ResizeObserver(() => {
+        this.resizeCharts();
+      });
+      this.resizeObserver.observe(host1);
+      this.resizeObserver.observe(host15);
+    }
+
+    if (typeof window !== 'undefined') {
+      this.resizeWindowHandler = () => {
+        this.resizeCharts();
+      };
+      window.addEventListener('resize', this.resizeWindowHandler, { passive: true });
+    }
+  }
+
+  private teardownChartResizeObservers(): void {
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
+    if (this.resizeWindowHandler && typeof window !== 'undefined') {
+      window.removeEventListener('resize', this.resizeWindowHandler);
+      this.resizeWindowHandler = null;
+    }
+  }
+
+  private resizeCharts(): void {
+    const host1 = document.getElementById('chart-1h');
+    const host15 = document.getElementById('chart-15m');
+
+    if (this.chart1h && host1) {
+      const width = host1.clientWidth;
+      const height = host1.clientHeight || 320;
+      if (width > 0) {
+        this.chart1h.resize(width, height);
+        this.chart1h.timeScale().fitContent();
+      }
+    }
+
+    if (this.chart15m && host15) {
+      const width = host15.clientWidth;
+      const height = host15.clientHeight || 320;
+      if (width > 0) {
+        this.chart15m.resize(width, height);
+        this.chart15m.timeScale().fitContent();
+      }
+    }
+  }
+
   private destroyCharts(): void {
+    this.teardownChartResizeObservers();
     try {
       if (this.chart1h) {
         this.chart1h.remove();
