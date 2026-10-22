@@ -96,6 +96,3 @@ allowBuilds:
   '@parcel/watcher': true
   esbuild: true
   msgpackr-extract: true
-  '@prisma/client': true
-  '@prisma/engines': true
-  prisma: true

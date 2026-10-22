@@ -15,7 +15,6 @@ describe('MarketDataService', () => {
       findByBrokerSymbolTimeframeRange: ReturnType<typeof vi.fn>;
     };
     configService?: { getNumber: ReturnType<typeof vi.fn> };
-    prismaService?: { isDatabaseAvailable: ReturnType<typeof vi.fn> };
   }) {
     const brokerManager = dependencies?.brokerManager ?? new BrokerManager();
     const candleRepository = dependencies?.candleRepository ?? {
@@ -24,13 +23,10 @@ describe('MarketDataService', () => {
       findByBrokerSymbolTimeframeRange: vi.fn(async () => []),
     };
     const configService = dependencies?.configService ?? { getNumber: vi.fn(() => 100) };
-    const prismaService = dependencies?.prismaService ?? { isDatabaseAvailable: vi.fn(() => true) };
-
     return {
-      service: new MarketDataService(brokerManager, candleRepository as never, configService as never, prismaService as never),
+      service: new MarketDataService(brokerManager, candleRepository as never, configService as never),
       candleRepository,
       configService,
-      prismaService,
       brokerManager,
     };
   }
@@ -172,10 +168,8 @@ describe('MarketDataService', () => {
     expect(candles[1].isClosed).toBe(true);
   });
 
-  it('fetches candles directly from Bybit when the database is disabled', async () => {
-    const { service, brokerManager, candleRepository } = createService({
-      prismaService: { isDatabaseAvailable: vi.fn(() => false) },
-    });
+  it('fetches candles from Bybit when no cached candles exist', async () => {
+    const { service, brokerManager, candleRepository } = createService();
     const getCandles = vi.fn(async () => [
       {
         symbol: 'BTCUSDT',
@@ -201,7 +195,7 @@ describe('MarketDataService', () => {
     const candles = await service.getCandles({ brokerId: 'bybit', symbol: 'BTCUSDT', timeframe: Timeframe.H1, limit: 1 });
 
     expect(getCandles).toHaveBeenCalledOnce();
-    expect(candleRepository.findByBrokerSymbolTimeframe).not.toHaveBeenCalled();
+    expect(candleRepository.findByBrokerSymbolTimeframe).toHaveBeenCalledOnce();
     expect(candles).toHaveLength(1);
     expect(candles[0].openTime.toISOString()).toBe('2026-09-16T10:00:00.000Z');
   });
@@ -308,10 +302,9 @@ describe('MarketDataService', () => {
     expect(candleRepository.upsertMany).toHaveBeenCalled();
   });
 
-  it('loads historical candles directly when the database is disabled', async () => {
+  it('falls back to provider range fetch when cache is empty', async () => {
     const { service, brokerManager, candleRepository } = createService({
       configService: { getNumber: vi.fn(() => 10) },
-      prismaService: { isDatabaseAvailable: vi.fn(() => false) },
     });
     const getCandles = vi
       .fn()
@@ -370,9 +363,9 @@ describe('MarketDataService', () => {
     });
 
     expect(getCandles).toHaveBeenCalled();
-    expect(candleRepository.upsertMany).not.toHaveBeenCalled();
-    expect(candleRepository.findByBrokerSymbolTimeframeRange).not.toHaveBeenCalled();
-    expect(candles).toHaveLength(2);
+    expect(candleRepository.upsertMany).toHaveBeenCalled();
+    expect(candleRepository.findByBrokerSymbolTimeframeRange).toHaveBeenCalledOnce();
+    expect(candles).toHaveLength(1);
   });
 
   it('rejects invalid candles', async () => {

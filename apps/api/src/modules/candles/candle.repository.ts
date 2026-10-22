@@ -1,11 +1,24 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Timeframe } from '../../common/enums.js';
 import type { BrokerId, Candle } from '../brokers/domain/types.js';
 
+type StoredCandle = {
+  id: string;
+  brokerId: BrokerId;
+  symbol: string;
+  timeframe: Timeframe;
+  openTime: Date;
+  closeTime: Date;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+};
+
 @Injectable()
 export class CandleRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly candles = new Map<string, StoredCandle>();
 
   async upsertMany(
     candles: Array<Required<Pick<Candle, 'brokerId' | 'symbol' | 'timeframe' | 'openTime'>> & Omit<Candle, 'brokerId' | 'symbol' | 'timeframe' | 'openTime'>>,
@@ -14,51 +27,40 @@ export class CandleRepository {
       return [];
     }
 
-    return this.prisma.$transaction(
-      candles.map((candle) =>
-        this.prisma.candle.upsert({
-          where: {
-            brokerId_symbol_timeframe_openTime: {
-              brokerId: candle.brokerId,
-              symbol: candle.symbol,
-              timeframe: candle.timeframe,
-              openTime: candle.openTime,
-            },
-          },
-          create: {
-            brokerId: candle.brokerId,
-            symbol: candle.symbol,
-            timeframe: candle.timeframe,
-            openTime: candle.openTime,
-            closeTime: candle.closeTime,
-            open: candle.open,
-            high: candle.high,
-            low: candle.low,
-            close: candle.close,
-            volume: candle.volume,
-          },
-          update: {
-            closeTime: candle.closeTime,
-            open: candle.open,
-            high: candle.high,
-            low: candle.low,
-            close: candle.close,
-            volume: candle.volume,
-          },
-        }),
-      ),
-    );
+    const records: StoredCandle[] = [];
+    for (const candle of candles) {
+      const key = this.key(candle.brokerId, candle.symbol, candle.timeframe, candle.openTime);
+      const existing = this.candles.get(key);
+      const next: StoredCandle = {
+        id: existing?.id ?? `candle-${this.candles.size + 1}`,
+        brokerId: candle.brokerId,
+        symbol: candle.symbol,
+        timeframe: candle.timeframe,
+        openTime: candle.openTime,
+        closeTime: candle.closeTime,
+        open: candle.open,
+        high: candle.high,
+        low: candle.low,
+        close: candle.close,
+        volume: candle.volume,
+      };
+
+      this.candles.set(key, next);
+      records.push(next);
+    }
+
+    return records;
   }
 
   async findMany(filter: { brokerId?: BrokerId; symbol?: string; timeframe?: Timeframe; limit?: number } = {}) {
-    const where: Record<string, unknown> = {};
-    if (filter.brokerId) where.brokerId = filter.brokerId;
-    if (filter.symbol) where.symbol = filter.symbol;
-    if (filter.timeframe) where.timeframe = filter.timeframe;
-
     const take = filter.limit ?? 100;
 
-    return this.prisma.candle.findMany({ where, take, orderBy: { openTime: 'asc' } });
+    return Array.from(this.candles.values())
+      .filter((entry) => (!filter.brokerId || entry.brokerId === filter.brokerId)
+        && (!filter.symbol || entry.symbol === filter.symbol)
+        && (!filter.timeframe || entry.timeframe === filter.timeframe))
+      .sort((left, right) => left.openTime.getTime() - right.openTime.getTime())
+      .slice(0, take);
   }
 
   async findByBrokerSymbolTimeframe(filter: { brokerId: BrokerId; symbol: string; timeframe: Timeframe; limit?: number }) {
@@ -72,28 +74,22 @@ export class CandleRepository {
     startTime: Date;
     endTime: Date;
   }) {
-    return this.prisma.candle.findMany({
-      where: {
-        brokerId: filter.brokerId,
-        symbol: filter.symbol,
-        timeframe: filter.timeframe,
-        openTime: {
-          gte: filter.startTime,
-          lte: filter.endTime,
-        },
-      },
-      orderBy: { openTime: 'asc' },
-    });
+    return Array.from(this.candles.values())
+      .filter((entry) => entry.brokerId === filter.brokerId
+        && entry.symbol === filter.symbol
+        && entry.timeframe === filter.timeframe
+        && entry.openTime.getTime() >= filter.startTime.getTime()
+        && entry.openTime.getTime() <= filter.endTime.getTime())
+      .sort((left, right) => left.openTime.getTime() - right.openTime.getTime());
   }
 
   async findLatest(filter: { brokerId: BrokerId; symbol: string; timeframe: Timeframe }) {
-    return this.prisma.candle.findFirst({
-      where: {
-        brokerId: filter.brokerId,
-        symbol: filter.symbol,
-        timeframe: filter.timeframe,
-      },
-      orderBy: { openTime: 'desc' },
-    });
+    return Array.from(this.candles.values())
+      .filter((entry) => entry.brokerId === filter.brokerId && entry.symbol === filter.symbol && entry.timeframe === filter.timeframe)
+      .sort((left, right) => right.openTime.getTime() - left.openTime.getTime())[0] ?? null;
+  }
+
+  private key(brokerId: BrokerId, symbol: string, timeframe: Timeframe, openTime: Date): string {
+    return `${brokerId}::${symbol}::${timeframe}::${openTime.toISOString()}`;
   }
 }

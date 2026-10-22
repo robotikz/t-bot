@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from './../src/app.module.js';
-import { vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 function createResponse(body: unknown) {
   return {
@@ -17,7 +17,7 @@ describe('AppController (e2e)', () => {
   const originalFetch = globalThis.fetch;
 
   beforeAll(() => {
-    process.env.DATABASE_URL = '';
+    delete process.env.DATABASE_URL;
     process.env.BYBIT_ENABLED = 'true';
     process.env.BYBIT_API_BASE_URL = 'https://api.bybit.eu';
     process.env.BYBIT_BASE_URL = 'https://api.bybit.eu';
@@ -147,7 +147,7 @@ describe('AppController (e2e)', () => {
       .expect(({ body }) => {
         expect(body.success).toBe(true);
         expect(body.data.status).toBe('ok');
-        expect(body.data.database).toBe('disabled');
+        expect(body.data.storage).toBe('in-memory');
       });
   });
 
@@ -158,7 +158,7 @@ describe('AppController (e2e)', () => {
       .expect(503)
       .expect(({ body }) => {
         expect(body.success).toBe(false);
-        expect(String(body.message)).toContain('Database is disabled');
+        expect(String(body.message)).toContain('persistent storage is not configured');
       });
 
     await request(app.getHttpServer())
@@ -166,8 +166,13 @@ describe('AppController (e2e)', () => {
       .expect(503)
       .expect(({ body }) => {
         expect(body.success).toBe(false);
-        expect(String(body.message)).toContain('Database is disabled');
+        expect(String(body.message)).toContain('persistent storage is not configured');
       });
+  });
+
+  it('starts successfully with DATABASE_URL unset', () => {
+    expect(process.env.DATABASE_URL).toBeUndefined();
+    return request(app.getHttpServer()).get('/api/health').expect(200);
   });
 
   it('/api/brokers exposes Bybit', () => {

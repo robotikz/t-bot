@@ -1,17 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { CandleRepository } from './candle.repository.js';
+import { FeatureDisabledException } from '../../common/exceptions/feature-disabled.exception.js';
 import { ListCandlesDto } from './dto/list-candles.dto.js';
-import { PrismaService } from '../../prisma/prisma.service.js';
 
 @Injectable()
 export class CandlesService {
-  constructor(
-    private readonly repo: CandleRepository,
-    private readonly prismaService: PrismaService,
-  ) {}
+  constructor() {}
 
-  async list(query: ListCandlesDto) {
-    this.prismaService.assertDatabaseAvailable();
-    return this.repo.findMany(query);
+  async list(_query: ListCandlesDto) {
+    throw new FeatureDisabledException('Candles endpoint');
   }
 }

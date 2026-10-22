@@ -8,9 +8,6 @@ This repository contains a minimal production-ready foundation for an algorithmi
 - NestJS
 - Angular
 - Angular Material
-- Prisma
-- PostgreSQL
-- Docker Compose
 - pnpm
 
 ## Repository structure
@@ -40,14 +37,6 @@ Before starting the API, copy the local environment file:
 
 ```bash
 cp .env.example apps/api/.env
-```
-
-This sets the Prisma `DATABASE_URL` to the local Postgres container created below.
-
-## Start PostgreSQL
-
-```bash
-docker compose up -d
 ```
 
 ## Run backend
@@ -82,15 +71,6 @@ Frontend:
 
 ```text
 http://localhost:4200
-```
-
-## Prisma
-
-Set the database URL in `.env` based on `.env.example` and then run:
-
-```bash
-pnpm --dir apps/api exec prisma generate
-pnpm --dir apps/api exec prisma db push
 ```
 
 ## Notes

@@ -1,21 +1,15 @@
 import { Controller, Get } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service.js';
 import { ConfigService } from '../config/config.service.js';
 
 @Controller('health')
 export class HealthController {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly config: ConfigService,
-  ) {}
+  constructor(private readonly config: ConfigService) {}
 
   @Get()
-  async check() {
-    const database = await this.prisma.ping();
-
+  check() {
     return {
       status: 'ok',
-      database,
+      storage: 'in-memory',
       environment: this.config.getString('NODE_ENV', 'development'),
       version: '1.0.0',
     };

@@ -14,7 +14,6 @@ RUN pnpm install --frozen-lockfile
 COPY apps/api apps/api
 COPY packages/shared packages/shared
 
-RUN pnpm --dir apps/api exec prisma generate
 RUN pnpm --dir apps/api exec tsc -p tsconfig.build.json --emitDeclarationOnly false --incremental false
 RUN cp -R apps/api/dist /tmp/api-dist && pnpm --filter api --prod deploy /opt/api && rm -rf /opt/api/dist && cp -R /tmp/api-dist /opt/api/dist
 
@@ -25,8 +24,6 @@ ENV NODE_ENV=production
 ENV PORT=3000
 
 COPY --from=build /opt/api ./
-
-RUN ./node_modules/.bin/prisma generate
 
 EXPOSE 3000
 

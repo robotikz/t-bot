@@ -5,7 +5,6 @@ export type AppConfigKey =
   | 'NODE_ENV'
   | 'PORT'
   | 'API_PREFIX'
-  | 'DATABASE_URL'
   | 'LOG_LEVEL'
   | 'FRONTEND_URL'
   | 'BYBIT_ENABLED'

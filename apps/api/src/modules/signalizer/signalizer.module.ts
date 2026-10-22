@@ -1,17 +1,23 @@
 import { Module } from '@nestjs/common';
-import { PrismaModule } from '../../prisma/prisma.module.js';
 import { SignalizerController } from './signalizer.controller.js';
 import { SignalizerService } from './signalizer.service.js';
-import { PrismaSignalHistoryRepository } from './repositories/prisma-signal-history.repository.js';
-import { PrismaSignalTransitionRepository } from './repositories/prisma-signal-transition.repository.js';
+import { InMemorySignalHistoryRepository } from './repositories/in-memory-signal-history.repository.js';
+import { InMemorySignalTransitionRepository } from './repositories/in-memory-signal-transition.repository.js';
 
 @Module({
-  imports: [PrismaModule],
   controllers: [SignalizerController],
   providers: [
     SignalizerService,
-    PrismaSignalHistoryRepository,
-    PrismaSignalTransitionRepository,
+    InMemorySignalHistoryRepository,
+    InMemorySignalTransitionRepository,
+    {
+      provide: 'SignalHistoryRepository',
+      useExisting: InMemorySignalHistoryRepository,
+    },
+    {
+      provide: 'SignalTransitionRepository',
+      useExisting: InMemorySignalTransitionRepository,
+    },
   ],
   exports: [SignalizerService]
 })

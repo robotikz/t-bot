@@ -1,17 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { ExchangeRepository } from './exchange.repository.js';
+import { FeatureDisabledException } from '../../common/exceptions/feature-disabled.exception.js';
 import { ListExchangesDto } from './dto/list-exchanges.dto.js';
-import { PrismaService } from '../../prisma/prisma.service.js';
 
 @Injectable()
 export class ExchangesService {
-  constructor(
-    private readonly repo: ExchangeRepository,
-    private readonly prismaService: PrismaService,
-  ) {}
+  constructor() {}
 
-  async list(query: ListExchangesDto) {
-    this.prismaService.assertDatabaseAvailable();
-    return this.repo.findAll(query);
+  async list(_query: ListExchangesDto) {
+    throw new FeatureDisabledException('Exchanges endpoint');
   }
 }

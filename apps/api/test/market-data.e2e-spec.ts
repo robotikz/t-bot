@@ -2,7 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
-import { vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 function createResponse(body: unknown) {
   return {
@@ -18,6 +18,7 @@ describe('MarketData (e2e)', () => {
   const e2eSymbol = 'BTCUSDT_E2E_MARKET_DATA';
 
   beforeAll(() => {
+    delete process.env.DATABASE_URL;
     process.env.BYBIT_ENABLED = 'true';
     process.env.BYBIT_API_BASE_URL = 'https://api.bybit.eu';
     process.env.BYBIT_BASE_URL = 'https://api.bybit.eu';
