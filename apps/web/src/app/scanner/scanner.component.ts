@@ -83,6 +83,13 @@ interface ExecutionChecks {
   supportResistanceValid: boolean;
 }
 
+interface ExecutionCheckView {
+  key: keyof ExecutionChecks;
+  label: string;
+  passed: boolean;
+  important: boolean;
+}
+
 interface GridSetupRecommendation {
   investmentUsdc: number;
   entryLow: number;
@@ -113,6 +120,11 @@ interface UsdcExecutionSection {
   executionStatus: 'AVAILABLE' | 'UNAVAILABLE';
   marketSuitableForGrid: boolean;
   marketSuitabilityReason: string;
+  analysisStatus: ScannerCandidate['status'];
+  analysisEntryTiming: EntryTiming;
+  analysisDecision: ExecutionDecision;
+  executionEligibilityDecision: ExecutionDecision;
+  decisionContext: string;
   entryTiming: EntryTiming;
   entryScore: number;
   status: ExecutionStatus;
@@ -125,6 +137,8 @@ interface UsdcExecutionSection {
   analysis1h?: MarketAnalysis;
   analysis15m?: MarketAnalysis;
   checks: ExecutionChecks;
+  failedOrImportantChecks: ExecutionCheckView[];
+  allChecks: ExecutionCheckView[];
   recommendation?: GridSetupRecommendation;
 }
 
@@ -355,9 +369,10 @@ export class ScannerComponent {
           `Execution Quote: ${this.usdcExecution.executionQuote}`,
           `USDC Pair Available: ${this.usdcExecution.available ? 'YES' : 'NO'}`,
           `Execution Status: ${this.usdcExecution.executionStatus}`,
-          `Entry Timing: ${this.usdcExecution.status}`,
-          `Execution Decision: ${this.usdcExecution.decision}`,
-          `Execution Pair Exists: ${this.usdcExecution.available ? 'YES' : 'NO'}`,
+          `Entry Timing: ${this.usdcExecution.entryTiming}`,
+          `Analysis Decision: ${this.usdcExecution.analysisDecision}`,
+          `Execution Eligibility Decision: ${this.usdcExecution.executionEligibilityDecision}`,
+          `Authoritative Decision: ${this.usdcExecution.decision}`,
           `USDC Turnover: ${this.formatNumber(this.usdcExecution.market?.turnover24h, 0)}`,
           `Liquidity Decision: ${this.usdcExecution.liquidityDecision}`,
           `Reason: ${this.usdcExecution.reason}`,
@@ -842,11 +857,18 @@ export class ScannerComponent {
       executionStatus: 'UNAVAILABLE',
       marketSuitableForGrid: false,
       marketSuitabilityReason: 'Waiting for USDC pair availability check.',
+      analysisStatus: candidate.status,
+      analysisEntryTiming: this.candidateEntryTiming(candidate),
+      analysisDecision: this.candidateExecutionDecision(candidate),
+      executionEligibilityDecision: 'WAIT',
+      decisionContext: 'Waiting for execution pair analysis.',
       entryTiming: 'WAIT_CONFIRMATION',
       entryScore: 0,
       status: 'WAIT_CONFIRMATION',
       decision: 'WAIT',
       checks: this.emptyExecutionChecks(false),
+      failedOrImportantChecks: [],
+      allChecks: [],
     };
 
     this.getExecutionMarketResolver()
@@ -921,17 +943,25 @@ export class ScannerComponent {
             executionStatus: 'UNAVAILABLE',
             marketSuitableForGrid: false,
             marketSuitabilityReason: 'Cannot evaluate grid suitability because the USDC execution pair is unavailable.',
+            analysisStatus: candidate.status,
+            analysisEntryTiming: this.candidateEntryTiming(candidate),
+            analysisDecision: this.candidateExecutionDecision(candidate),
+            executionEligibilityDecision: 'UNAVAILABLE',
+            decisionContext: 'Execution pair is unavailable, so launch is not possible.',
             entryTiming: 'NO_ENTRY',
             entryScore: 0,
             status: 'UNAVAILABLE',
             decision: 'UNAVAILABLE',
             checks: this.emptyExecutionChecks(false),
+            failedOrImportantChecks: [],
+            allChecks: [],
           };
           this.cdr.markForCheck();
           return;
         }
 
         this.usdcExecution = this.buildUsdcExecutionSection(
+          candidate,
           result.resolution,
           result.analysis1h,
           result.analysis15m,
@@ -1015,6 +1045,7 @@ export class ScannerComponent {
   }
 
   private buildUsdcExecutionSection(
+    candidate: ScannerCandidate,
     resolution: ExecutionMarketResolution,
     analysis1h: MarketAnalysis,
     analysis15m: MarketAnalysis,
@@ -1111,10 +1142,14 @@ export class ScannerComponent {
     });
 
     const risk = this.calculateRisk(analysis1h, analysis15m, liquiditySufficient, closeToSupport, tooCloseToResistance);
-    const decision = this.calculateExecutionDecision(status, risk);
-    const recommendation = this.buildGridRecommendation(analysis1h, analysis15m, status, risk, decision);
+    const executionEligibilityDecision = this.calculateExecutionDecision(status, risk);
+    const analysisDecision = this.candidateExecutionDecision(candidate);
+    const decision = this.buildAuthoritativeExecutionDecision(analysisDecision, executionEligibilityDecision);
+    const recommendation = this.buildGridRecommendation(analysis1h, analysis15m, status, risk, executionEligibilityDecision);
 
-    const reason = this.executionReason(status, {
+    const checks: ExecutionChecks = {
+      usdcPairAvailable: true,
+      suitableForSpotGrid: marketSuitableForGrid,
       liquiditySufficient,
       closeToSupport,
       tooCloseToResistance,
@@ -1122,10 +1157,14 @@ export class ScannerComponent {
       trend15mAcceptable,
       volatilitySufficient,
       insideReasonableRange,
-      suitableForSpotGrid: marketSuitableForGrid,
-      usdcPairAvailable: true,
       supportResistanceValid,
-    });
+    };
+
+    const allChecks = this.buildExecutionCheckViews(checks);
+    const failedOrImportantChecks = allChecks.filter((check) => check.important || !check.passed);
+
+    const reason = this.executionReason(status, checks);
+    const decisionContext = this.buildDecisionContext(analysisDecision, executionEligibilityDecision, decision);
 
     return {
       analysisSymbol: resolution.analysisSymbol,
@@ -1142,6 +1181,11 @@ export class ScannerComponent {
       executionStatus: 'AVAILABLE',
       marketSuitableForGrid,
       marketSuitabilityReason,
+      analysisStatus: candidate.status,
+      analysisEntryTiming: this.candidateEntryTiming(candidate),
+      analysisDecision,
+      executionEligibilityDecision,
+      decisionContext,
       entryTiming: status,
       entryScore,
       status,
@@ -1153,20 +1197,88 @@ export class ScannerComponent {
       },
       analysis1h,
       analysis15m,
-      checks: {
-        usdcPairAvailable: true,
-        suitableForSpotGrid: marketSuitableForGrid,
-        liquiditySufficient,
-        closeToSupport,
-        tooCloseToResistance,
-        trend1hAcceptable,
-        trend15mAcceptable,
-        volatilitySufficient,
-        insideReasonableRange,
-        supportResistanceValid,
-      },
+      checks,
+      failedOrImportantChecks,
+      allChecks,
       recommendation,
     };
+  }
+
+  private buildExecutionCheckViews(checks: ExecutionChecks): ExecutionCheckView[] {
+    return [
+      { key: 'usdcPairAvailable', label: 'USDC pair available', passed: checks.usdcPairAvailable, important: true },
+      { key: 'suitableForSpotGrid', label: 'Suitable for spot grid', passed: checks.suitableForSpotGrid, important: true },
+      { key: 'liquiditySufficient', label: 'Liquidity sufficient', passed: checks.liquiditySufficient, important: true },
+      { key: 'supportResistanceValid', label: 'Support/resistance valid', passed: checks.supportResistanceValid, important: true },
+      { key: 'trend1hAcceptable', label: '1H trend acceptable', passed: checks.trend1hAcceptable, important: true },
+      { key: 'trend15mAcceptable', label: '15M trend acceptable', passed: checks.trend15mAcceptable, important: false },
+      { key: 'closeToSupport', label: 'Price close to support', passed: checks.closeToSupport, important: false },
+      {
+        key: 'tooCloseToResistance',
+        label: 'Not too close to resistance',
+        passed: !checks.tooCloseToResistance,
+        important: true,
+      },
+      { key: 'volatilitySufficient', label: 'Volatility sufficient', passed: checks.volatilitySufficient, important: false },
+      { key: 'insideReasonableRange', label: 'Inside reasonable range', passed: checks.insideReasonableRange, important: false },
+    ];
+  }
+
+  candidateExecutionDecision(candidate: ScannerCandidate): ExecutionDecision {
+    const timing = this.candidateEntryTiming(candidate);
+
+    if (candidate.status === 'REJECTED' || timing === 'NO_ENTRY') {
+      return 'DO_NOT_LAUNCH';
+    }
+
+    if (candidate.status === 'CANDIDATE' && timing === 'READY') {
+      return 'CAN_LAUNCH';
+    }
+
+    return 'WAIT';
+  }
+
+  private buildAuthoritativeExecutionDecision(
+    analysisDecision: ExecutionDecision,
+    executionEligibilityDecision: ExecutionDecision,
+  ): ExecutionDecision {
+    if (analysisDecision === 'UNAVAILABLE' || executionEligibilityDecision === 'UNAVAILABLE') {
+      return 'UNAVAILABLE';
+    }
+
+    if (analysisDecision === 'DO_NOT_LAUNCH' || executionEligibilityDecision === 'DO_NOT_LAUNCH') {
+      return 'DO_NOT_LAUNCH';
+    }
+
+    if (analysisDecision === 'CAN_LAUNCH' && executionEligibilityDecision === 'CAN_LAUNCH') {
+      return 'CAN_LAUNCH';
+    }
+
+    return 'WAIT';
+  }
+
+  private buildDecisionContext(
+    analysisDecision: ExecutionDecision,
+    executionEligibilityDecision: ExecutionDecision,
+    authoritativeDecision: ExecutionDecision,
+  ): string {
+    if (authoritativeDecision === 'UNAVAILABLE') {
+      return 'Execution pair is unavailable.';
+    }
+
+    if (authoritativeDecision === 'DO_NOT_LAUNCH' && analysisDecision === 'DO_NOT_LAUNCH') {
+      return 'Blocked by market analysis status for this snapshot.';
+    }
+
+    if (authoritativeDecision === 'DO_NOT_LAUNCH' && executionEligibilityDecision === 'DO_NOT_LAUNCH') {
+      return 'Blocked by execution-pair eligibility checks.';
+    }
+
+    if (authoritativeDecision === 'WAIT') {
+      return 'Market analysis and execution checks are not both launch-ready yet.';
+    }
+
+    return 'Market analysis and execution checks are aligned for launch.';
   }
 
   private emptyExecutionChecks(usdcPairAvailable: boolean): ExecutionChecks {

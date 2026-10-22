@@ -144,6 +144,8 @@ describe('ScannerComponent', () => {
   };
 
   beforeEach(async () => {
+    localStorage.clear();
+
     api = {
       scan: vi.fn(() => of(scanResult)),
       getQuoteCoins: vi.fn(() => of(['USDT', 'USDC'])),
@@ -700,7 +702,8 @@ describe('ScannerComponent', () => {
     await fixture.whenStable();
 
     expect(component.usdcExecution?.status).toBe('READY');
-    expect(component.usdcExecution?.decision).toBe('CAN_LAUNCH');
+    expect(component.usdcExecution?.executionEligibilityDecision).toBe('CAN_LAUNCH');
+    expect(component.usdcExecution?.decision).toBe('WAIT');
   });
 
   it.each([
@@ -782,5 +785,95 @@ describe('ScannerComponent', () => {
     expect(component.usdcExecution?.analysis1h).toBeDefined();
     expect(component.usdcExecution?.analysis15m).toBeDefined();
     expect(component.usdcExecution?.entryScore ?? 0).toBeGreaterThanOrEqual(0);
+  });
+
+  it('keeps authoritative decision at DO_NOT_LAUNCH when scanner status is REJECTED but execution pair checks are launch-ready', async () => {
+    api.scan.mockReturnValueOnce(
+      of({
+        timestamp: '2026-10-04T12:00:00.000Z',
+        count: 1,
+        candidates: [
+          {
+            ...scanResult.candidates[0],
+            symbol: 'BTCUSDT',
+            status: 'REJECTED',
+            entryTiming: 'READY',
+            score: 82,
+          },
+        ],
+      }),
+    );
+
+    api.getAnalysis.mockImplementation((symbol: string, timeframe: '1h' | '15m') =>
+      of(
+        timeframe === '1h'
+          ? createUsdcAnalysis('1h', {
+              price: 5.12,
+              trendDirection: 'UP',
+              distanceToSupportPercent: 1.8,
+              distanceToResistancePercent: 3.3,
+              positionInRangePercent: 52,
+            })
+          : createUsdcAnalysis('15m', {
+              price: 5.12,
+              trendDirection: 'UP',
+              distanceToSupportPercent: 1.2,
+              distanceToResistancePercent: 2.7,
+              positionInRangePercent: 48,
+            }),
+      ),
+    );
+
+    fixture.detectChanges();
+    component.scan();
+    await fixture.whenStable();
+
+    expect(component.usdcExecution?.analysisDecision).toBe('DO_NOT_LAUNCH');
+    expect(component.usdcExecution?.executionEligibilityDecision).toBe('CAN_LAUNCH');
+    expect(component.usdcExecution?.decision).toBe('DO_NOT_LAUNCH');
+  });
+
+  it('keeps authoritative decision at WAIT when market analysis is WAIT and execution pair checks are launch-ready', async () => {
+    api.scan.mockReturnValueOnce(
+      of({
+        timestamp: '2026-10-04T12:00:00.000Z',
+        count: 1,
+        candidates: [
+          {
+            ...scanResult.candidates[0],
+            symbol: 'BTCUSDT',
+            status: 'WATCH',
+            entryTiming: 'WAIT_CONFIRMATION',
+            score: 78,
+          },
+        ],
+      }),
+    );
+
+    api.getAnalysis.mockImplementation((symbol: string, timeframe: '1h' | '15m') =>
+      of(
+        timeframe === '1h'
+          ? createUsdcAnalysis('1h', {
+              trendDirection: 'UP',
+              distanceToSupportPercent: 1.7,
+              distanceToResistancePercent: 3.2,
+              positionInRangePercent: 51,
+            })
+          : createUsdcAnalysis('15m', {
+              trendDirection: 'UP',
+              distanceToSupportPercent: 1.1,
+              distanceToResistancePercent: 2.6,
+              positionInRangePercent: 46,
+            }),
+      ),
+    );
+
+    fixture.detectChanges();
+    component.scan();
+    await fixture.whenStable();
+
+    expect(component.usdcExecution?.analysisDecision).toBe('WAIT');
+    expect(component.usdcExecution?.executionEligibilityDecision).toBe('CAN_LAUNCH');
+    expect(component.usdcExecution?.decision).toBe('WAIT');
   });
 });

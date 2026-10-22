@@ -26,6 +26,28 @@ function formatMarketPrice(value: number | null | undefined): string {
   }).format(value);
 }
 
+export function formatAdaptiveMarketPrice(value: number | null | undefined): string {
+  return formatMarketPrice(value);
+}
+
+export function formatAnalysisRange(low: number | null | undefined, high: number | null | undefined): string {
+  if (low === null || low === undefined || high === null || high === undefined) {
+    return 'N/A';
+  }
+
+  return `${formatMarketPrice(low)} - ${formatMarketPrice(high)}`;
+}
+
+export function formatChartTitle(symbol: string | null | undefined, timeframeLabel: string): string {
+  const trimmedSymbol = symbol?.trim() || 'Charts';
+  return `${trimmedSymbol} · ${timeframeLabel}`;
+}
+
+export function formatChartExportHeader(symbol: string | null | undefined): string {
+  const trimmedSymbol = symbol?.trim() || 'Charts';
+  return `${trimmedSymbol} — Bybit Spot`;
+}
+
 export function formatChartTimeAxisLabel(time: any): string {
   if (time === null || time === undefined) {
     return '';

@@ -224,24 +224,25 @@
         <button type="button" class="copy-button" (click)="copyAnalysis()">Copy for Analysis</button>
       </div>
 
-      <div class="analysis-copy">
+      <details class="analysis-copy" [open]="false">
+        <summary>Raw analysis text</summary>
         <pre>{{ analysisText }}</pre>
-      </div>
+      </details>
 
       <section class="execution-panel">
-        <div class="execution-header">
-          <div class="execution-title">
-            <span class="eyebrow">Market analysis</span>
-            <h3>{{ usdcExecution?.analysisSymbol ?? candidate.symbol }}</h3>
-            <p class="execution-subtitle">↓ technical analysis market</p>
-          </div>
-
+        <div class="execution-header-compact">
+          <span class="eyebrow">Market Analysis / Grid Bot Execution</span>
           @if (usdcExecution; as execution) {
-            <div class="execution-title execution-title-right">
-              <span class="eyebrow">Grid bot execution</span>
-              <h3>{{ execution.executionSymbol || 'N/A' }}</h3>
-              <p class="execution-subtitle">↓ actual Bybit EU Spot Grid pair</p>
-            </div>
+            @if (execution.executionSymbol && execution.executionSymbol !== execution.analysisSymbol) {
+              <div class="symbol-pairs">
+                <p><span class="symbol-label">Analysis</span><strong>{{ execution.analysisSymbol }}</strong></p>
+                <p><span class="symbol-label">Execution</span><strong>{{ execution.executionSymbol }}</strong></p>
+              </div>
+            } @else {
+              <p class="single-symbol"><strong>{{ execution.analysisSymbol || execution.executionSymbol || candidate.symbol }}</strong></p>
+            }
+          } @else {
+            <p class="single-symbol"><strong>{{ candidate.symbol }}</strong></p>
           }
         </div>
 
@@ -249,180 +250,155 @@
           @if (execution.isLoading) {
             <p class="loading">Loading USDC execution pair data...</p>
           } @else {
-            <div class="summary-card execution-card">
-              <h3>USDC EXECUTION / GRID BOT</h3>
-              <p>Analysis Symbol: {{ execution.analysisSymbol }}</p>
-              <p>Analysis Quote: {{ execution.analysisQuote }}</p>
-              <p>Base Asset: {{ execution.baseAsset }}</p>
-              <p>Execution Symbol: {{ execution.executionSymbol || 'N/A' }}</p>
-              <p>Execution Quote: {{ execution.executionQuote }}</p>
-              <p>
-                USDC Pair Available:
+            <div class="summary-card execution-card compact">
+              <div class="decision-hero">
+                <div>
+                  <span class="eyebrow">Authoritative execution decision</span>
+                  <p class="decision-main">
+                    <span class="status" [ngClass]="executionDecisionClass(execution.decision)">{{ execution.decision }}</span>
+                  </p>
+                  <p class="decision-context">{{ execution.decisionContext }}</p>
+                </div>
+                <div class="decision-breakdown">
+                  <p>
+                    Market analysis:
+                    <span class="status" [ngClass]="executionDecisionClass(execution.analysisDecision)">{{ execution.analysisDecision }}</span>
+                  </p>
+                  <p>
+                    Execution pair eligibility:
+                    <span class="status" [ngClass]="executionDecisionClass(execution.executionEligibilityDecision)">
+                      {{ execution.executionEligibilityDecision }}
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              <div class="compact-summary-row">
+                <div class="summary-item">
+                  <span class="summary-label">Current Price</span>
+                  <strong>{{ formatMarketPrice(execution.market?.currentPrice) }}</strong>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-label">24h Change</span>
+                  <strong [class.positive]="(execution.market?.change24hPercent ?? 0) >= 0" [class.negative]="(execution.market?.change24hPercent ?? 0) < 0">
+                    {{ (execution.market?.change24hPercent ?? 0) >= 0 ? '+' : '' }}{{ execution.market?.change24hPercent | number: '1.1-2' }}%
+                  </strong>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-label">Market Score</span>
+                  <strong>{{ candidate.score | number: '1.2-2' }}</strong>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-label">Entry Score</span>
+                  <strong>{{ execution.entryScore | number: '1.0-0' }}</strong>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-label">Entry Timing</span>
+                  <strong><span class="status" [ngClass]="executionStatusClass(execution.entryTiming)">{{ execution.entryTiming }}</span></strong>
+                </div>
+              </div>
+
+              <p class="compact-meta">
+                Pair availability:
                 <strong [class.ok-yes]="execution.available" [class.ok-no]="!execution.available">{{ execution.available ? 'YES' : 'NO' }}</strong>
-              </p>
-
-              <p>
-                Execution Status:
-                <span class="status" [ngClass]="execution.executionStatus === 'AVAILABLE' ? 'execution-ready' : 'execution-no-entry'">{{ execution.executionStatus }}</span>
-              </p>
-
-              <p>
-                Entry Timing:
-                <span class="status" [ngClass]="executionStatusClass(execution.status)">{{ execution.status }}</span>
-              </p>
-
-              <p>
-                Market Suitability:
+                · Market suitability:
                 <strong [class.ok-yes]="execution.marketSuitableForGrid" [class.ok-no]="!execution.marketSuitableForGrid">
                   {{ execution.marketSuitableForGrid ? 'GOOD FOR GRID' : 'WEAK / HIGH RISK' }}
                 </strong>
+                · Liquidity: <strong>{{ execution.liquidityDecision }}</strong>
               </p>
-              <p>Market Suitability Reason: {{ execution.marketSuitabilityReason }}</p>
-
-              <p>
-                Entry Timing:
-                <span class="status" [ngClass]="executionStatusClass(execution.entryTiming)">{{ execution.entryTiming }}</span>
-              </p>
-              <p>Entry Score: {{ execution.entryScore | number: '1.0-0' }}</p>
-
-              <p>
-                Execution Decision:
-                <span class="status" [ngClass]="executionDecisionClass(execution.decision)">{{ execution.decision }}</span>
-              </p>
-
-              <p>Execution Pair Exists: {{ execution.available ? 'YES' : 'NO' }}</p>
-              <p>USDC Turnover: {{ execution.market?.turnover24h | number: '1.0-0' }}</p>
-              <p>Liquidity: {{ execution.liquidityDecision }}</p>
-              <p>Reason: {{ execution.reason }}</p>
+              <p class="compact-meta">{{ execution.marketSuitabilityReason }}</p>
+              <p class="compact-meta">{{ execution.reason }}</p>
               @if (execution.errorMessage) {
                 <p class="error">{{ execution.errorMessage }}</p>
               }
             </div>
 
             @if (execution.available) {
-              <div class="detail-grid execution-grid">
-                <div class="summary-card">
-                  <h3>USDC Market (Execution Pair)</h3>
-                  <p>Current Price: {{ formatMarketPrice(execution.market?.currentPrice) }}</p>
-                  <p>
-                    24h Change:
-                    {{ (execution.market?.change24hPercent ?? 0) >= 0 ? '+' : '' }}{{ execution.market?.change24hPercent | number: '1.1-2' }}%
-                  </p>
-                  <p>24h Turnover: {{ execution.market?.turnover24h | number: '1.0-0' }}</p>
-                </div>
-
-                <div class="summary-card">
-                  <h3>USDC 1H</h3>
-                  <p>1H Support: {{ formatMarketPrice(execution.analysis1h?.support) }}</p>
-                  <p>1H Resistance: {{ formatMarketPrice(execution.analysis1h?.resistance) }}</p>
-                  <p>1H Range: {{ execution.analysis1h?.rangePercent | number: '1.1-2' }}%</p>
-                  <p>1H Position: {{ execution.analysis1h?.positionInRangePercent | number: '1.0-0' }}%</p>
-                  <p>1H Volatility: {{ execution.analysis1h?.volatilityPercent | number: '1.1-2' }}%</p>
-                  <p>1H Trend: {{ execution.analysis1h?.trendDirection ?? 'N/A' }}</p>
-                </div>
-
-                <div class="summary-card">
-                  <h3>USDC 15M</h3>
-                  <p>15M Support: {{ formatMarketPrice(execution.analysis15m?.support) }}</p>
-                  <p>15M Resistance: {{ formatMarketPrice(execution.analysis15m?.resistance) }}</p>
-                  <p>15M Range: {{ execution.analysis15m?.rangePercent | number: '1.1-2' }}%</p>
-                  <p>15M Position: {{ execution.analysis15m?.positionInRangePercent | number: '1.0-0' }}%</p>
-                  <p>15M Volatility: {{ execution.analysis15m?.volatilityPercent | number: '1.1-2' }}%</p>
-                  <p>15M Trend: {{ execution.analysis15m?.trendDirection ?? 'N/A' }}</p>
-                </div>
-
-                <div class="summary-card">
-                  <h3>Grid Bot Execution Check</h3>
-                  <p>USDC pair available: {{ execution.checks.usdcPairAvailable ? 'YES' : 'NO' }}</p>
-                  <p>Suitable for Spot Grid: {{ execution.checks.suitableForSpotGrid ? 'YES' : 'NO' }}</p>
-                  <p>Liquidity sufficient: {{ execution.checks.liquiditySufficient ? 'YES' : 'NO' }}</p>
-                  <p>Price close to support: {{ execution.checks.closeToSupport ? 'YES' : 'NO' }}</p>
-                  <p>Price too close to resistance: {{ execution.checks.tooCloseToResistance ? 'YES' : 'NO' }}</p>
-                  <p>1H trend acceptable: {{ execution.checks.trend1hAcceptable ? 'YES' : 'NO' }}</p>
-                  <p>15M trend acceptable: {{ execution.checks.trend15mAcceptable ? 'YES' : 'NO' }}</p>
-                  <p>Volatility sufficient: {{ execution.checks.volatilitySufficient ? 'YES' : 'NO' }}</p>
-                  <p>Inside reasonable range: {{ execution.checks.insideReasonableRange ? 'YES' : 'NO' }}</p>
-                </div>
+              <div class="summary-card compact-table-card">
+                <h3>Timeframe Comparison</h3>
+                <table class="comparison-table">
+                  <thead>
+                    <tr>
+                      <th>Metric</th>
+                      <th>1H</th>
+                      <th>15M</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Support</td>
+                      <td>{{ formatMarketPrice(execution.analysis1h?.support) }}</td>
+                      <td>{{ formatMarketPrice(execution.analysis15m?.support) }}</td>
+                    </tr>
+                    <tr>
+                      <td>Resistance</td>
+                      <td>{{ formatMarketPrice(execution.analysis1h?.resistance) }}</td>
+                      <td>{{ formatMarketPrice(execution.analysis15m?.resistance) }}</td>
+                    </tr>
+                    <tr>
+                      <td>Position</td>
+                      <td>{{ execution.analysis1h?.positionInRangePercent | number: '1.0-0' }}%</td>
+                      <td>{{ execution.analysis15m?.positionInRangePercent | number: '1.0-0' }}%</td>
+                    </tr>
+                    <tr>
+                      <td>Volatility</td>
+                      <td>{{ execution.analysis1h?.volatilityPercent | number: '1.1-2' }}%</td>
+                      <td>{{ execution.analysis15m?.volatilityPercent | number: '1.1-2' }}%</td>
+                    </tr>
+                    <tr>
+                      <td>Trend</td>
+                      <td>{{ execution.analysis1h?.trendDirection ?? 'N/A' }}</td>
+                      <td>{{ execution.analysis15m?.trendDirection ?? 'N/A' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
 
+              <details class="summary-card checks-card" [open]="false">
+                <summary>Detailed Execution Checks</summary>
+                <div class="checks-preview">
+                  @for (check of execution.failedOrImportantChecks; track check.key) {
+                    <p>
+                      {{ check.label }}:
+                      <strong [class.ok-yes]="check.passed" [class.ok-no]="!check.passed">{{ check.passed ? 'PASS' : 'FAIL' }}</strong>
+                    </p>
+                  }
+                </div>
+                <div class="checks-all">
+                  @for (check of execution.allChecks; track check.key) {
+                    <p>
+                      {{ check.label }}:
+                      <strong [class.ok-yes]="check.passed" [class.ok-no]="!check.passed">{{ check.passed ? 'PASS' : 'FAIL' }}</strong>
+                    </p>
+                  }
+                </div>
+              </details>
+
               @if (execution.recommendation; as recommendation) {
-                <div class="summary-card recommendation-card">
+                <div class="summary-card recommendation-card compact">
                   <h3>Recommended Grid Setup</h3>
-                  <p>Investment: {{ recommendation.investmentUsdc }} USDC</p>
-                  <p>
-                    Recommended Entry:
-                    {{ formatMarketPrice(recommendation.entryLow) }} - {{ formatMarketPrice(recommendation.entryHigh) }}
-                  </p>
-                  <p>
-                    Recommended Grid Range:
-                    {{ formatMarketPrice(recommendation.gridLow) }} - {{ formatMarketPrice(recommendation.gridHigh) }}
-                  </p>
-                  <p>Grid Count: {{ recommendation.gridCount }}</p>
-                  <p>Stop Loss: {{ formatMarketPrice(recommendation.stopLoss) }}</p>
-                  <p>Take Profit: {{ formatMarketPrice(recommendation.takeProfit) }}</p>
-                  <p>Trailing Up: {{ recommendation.trailingUp ? 'ON' : 'OFF' }}</p>
-                  <p>Trailing Stop: {{ recommendation.trailingStopPercent | number: '1.1-2' }}%</p>
-                  <p>Risk: {{ recommendation.risk }}</p>
-                  <p>
-                    Execution Decision:
-                    <span class="status" [ngClass]="executionDecisionClass(recommendation.executionDecision)">
-                      {{ recommendation.executionDecision }}
-                    </span>
-                  </p>
+                  <dl class="recommendation-grid">
+                    <div><dt>Investment</dt><dd>{{ recommendation.investmentUsdc }} USDC</dd></div>
+                    <div><dt>Entry</dt><dd>{{ formatMarketPrice(recommendation.entryLow) }} - {{ formatMarketPrice(recommendation.entryHigh) }}</dd></div>
+                    <div><dt>Grid Range</dt><dd>{{ formatMarketPrice(recommendation.gridLow) }} - {{ formatMarketPrice(recommendation.gridHigh) }}</dd></div>
+                    <div><dt>Grid Count</dt><dd>{{ recommendation.gridCount }}</dd></div>
+                    <div><dt>Stop Loss</dt><dd>{{ formatMarketPrice(recommendation.stopLoss) }}</dd></div>
+                    <div><dt>Take Profit</dt><dd>{{ formatMarketPrice(recommendation.takeProfit) }}</dd></div>
+                    <div><dt>Trailing Up</dt><dd>{{ recommendation.trailingUp ? 'ON' : 'OFF' }}</dd></div>
+                    <div><dt>Trailing Stop</dt><dd>{{ recommendation.trailingStopPercent | number: '1.1-2' }}%</dd></div>
+                    <div><dt>Risk</dt><dd>{{ recommendation.risk }}</dd></div>
+                    <div>
+                      <dt>Eligibility Decision</dt>
+                      <dd><span class="status" [ngClass]="executionDecisionClass(recommendation.executionDecision)">{{ recommendation.executionDecision }}</span></dd>
+                    </div>
+                  </dl>
                 </div>
               }
             }
           }
         }
       </section>
-
-      <div class="detail-grid">
-        <div class="panel">
-          <div class="panel-header" (click)="toggleSection(candidate.symbol,'marketSummary')">Market summary <span class="panel-indicator">{{ isSectionExpanded(candidate.symbol,'marketSummary') ? '−' : '+' }}</span></div>
-          @if (isSectionExpanded(candidate.symbol,'marketSummary')) {
-            <div class="panel-body">
-              <p>Price: {{ formatMarketPrice(candidate.market.lastPrice) }}</p>
-              <p>24h Change: {{ candidate.market.change24hPercent >= 0 ? '+' : '' }}{{ candidate.market.change24hPercent | number: '1.1-2' }}%</p>
-              <p>24h Turnover: {{ candidate.market.turnover24h | number: '1.0-0' }}</p>
-              <p>Status: {{ candidate.status }}</p>
-              <p>Market score: {{ candidate.score | number: '1.2-2' }}</p>
-              <p>Entry score: {{ candidateEntryScore(candidate) | number: '1.0-0' }}</p>
-              <p>Entry timing: {{ candidateEntryTiming(candidate) }}</p>
-            </div>
-          }
-        </div>
-
-        <div class="panel">
-          <div class="panel-header" (click)="toggleSection(candidate.symbol,'h1')">1H <span class="panel-indicator">{{ isSectionExpanded(candidate.symbol,'h1') ? '−' : '+' }}</span></div>
-          @if (isSectionExpanded(candidate.symbol,'h1')) {
-            <div class="panel-body">
-              <p>Support: {{ formatMarketPrice(candidate.analysis1h?.support) }}</p>
-              <p>Resistance: {{ formatMarketPrice(candidate.analysis1h?.resistance) }}</p>
-              <p>Range: {{ candidate.analysis1h?.rangePercent | number: '1.1-2' }}%</p>
-              <p>Position: {{ candidate.analysis1h?.positionInRangePercent | number: '1.0-0' }}%</p>
-              <p>Volatility: {{ candidate.analysis1h?.volatilityPercent | number: '1.1-2' }}%</p>
-              <p>Trend: {{ candidate.analysis1h?.trendDirection ?? 'N/A' }}</p>
-              <p>Score: {{ candidate.analysis1h?.gridScore | number: '1.2-2' }}</p>
-            </div>
-          }
-        </div>
-
-        <div class="panel">
-          <div class="panel-header" (click)="toggleSection(candidate.symbol,'m15')">15M <span class="panel-indicator">{{ isSectionExpanded(candidate.symbol,'m15') ? '−' : '+' }}</span></div>
-          @if (isSectionExpanded(candidate.symbol,'m15')) {
-            <div class="panel-body">
-              <p>Support: {{ formatMarketPrice(candidate.analysis15m?.support) }}</p>
-              <p>Resistance: {{ formatMarketPrice(candidate.analysis15m?.resistance) }}</p>
-              <p>Range: {{ candidate.analysis15m?.rangePercent | number: '1.1-2' }}%</p>
-              <p>Position: {{ candidate.analysis15m?.positionInRangePercent | number: '1.0-0' }}%</p>
-              <p>Volatility: {{ candidate.analysis15m?.volatilityPercent | number: '1.1-2' }}%</p>
-              <p>Trend: {{ candidate.analysis15m?.trendDirection ?? 'N/A' }}</p>
-              <p>Score: {{ candidate.analysis15m?.gridScore | number: '1.2-2' }}</p>
-            </div>
-          }
-        </div>
-
-      </div>
     </section>
   }
 </section>
